@@ -214,7 +214,7 @@
   }
   .resend-btn.active { color: #4F46E5; cursor: pointer; }
   .resend-btn.active:hover { color: #4338CA; }
-
+  #recaptcha-container { min-height: 1px; }
 
   /* ── Success ── */
   .success-inner {
@@ -427,7 +427,7 @@
           </button>
         </div>
         <div class="otp-status" id="otp-status"></div>
-
+        <div id="recaptcha-container"></div>
       </div>
     </div>
     <div class="step-footer">
@@ -457,7 +457,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
   import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js";
-  import { getAuth, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+  import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyDS7xXMQ2EHdWtrM9a4eJ9-Xj37GYx0Gz8",
@@ -471,7 +471,7 @@
   const app = initializeApp(firebaseConfig);
   const analytics = getAnalytics(app);
   const auth = getAuth(app);
-  window.firebasePhoneAuth = { auth, signInWithPhoneNumber };
+  window.firebasePhoneAuth = { auth, RecaptchaVerifier, signInWithPhoneNumber };
 </script>
 
 <!-- Data Layer & Analytics Initialization -->
@@ -624,7 +624,7 @@ const OTP_SECONDS = 20;
 
 const store = { name:'', mobile:'', mode:'', gradYear:'', state:'', demo:'' };
 let confirmationResult = null;
-// captcha verifier removed, no longer used
+let recaptchaVerifier = null;
 let otpVerifyInFlight = false;
 let otpVerified = false;
 
@@ -847,7 +847,7 @@ async function sendOtpToMobile(isResend=false){
     setOtpStatus('Firebase SDK not loaded. Refresh and try again.','error');
     return;
   }
-  const { auth, signInWithPhoneNumber } = window.firebasePhoneAuth;
+  const { auth, RecaptchaVerifier, signInWithPhoneNumber } = window.firebasePhoneAuth;
   const verifyBtn=document.getElementById('btn-verify');
   verifyBtn.disabled=true;
   verifyBtn.innerHTML='<div class="spinner"></div>';
@@ -855,9 +855,9 @@ async function sendOtpToMobile(isResend=false){
   trackOtpAction('send',{isResend:isResend});
   try{
     const phoneNumber='+91'+store.mobile;
-    // bypass captcha verification
-    const dummyVerifier = { type:'recaptcha', verify: () => Promise.resolve('') };
-    confirmationResult=await signInWithPhoneNumber(auth,phoneNumber,dummyVerifier);
+    if(recaptchaVerifier){recaptchaVerifier.clear();}
+    recaptchaVerifier=new RecaptchaVerifier(auth,'recaptcha-container',{size:'invisible'});
+    confirmationResult=await signInWithPhoneNumber(auth,phoneNumber,recaptchaVerifier);
     otpVerified=false;
     setOtpStatus('OTP sent. Enter the 6-digit code.','success');
     trackOtpAction('sent_success');
