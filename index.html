@@ -905,20 +905,11 @@ async function verifyOtp(){
     otpVerified=true;
     setOtpStatus('Mobile number verified successfully.','success');
     trackOtpAction('verified_success');
-    try{
-      await fetch(SHEETS_URL,{
-        method:'POST',mode:'no-cors',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({name:store.name,mobile:store.mobile,mode:store.mode,gradYear:store.gradYear,state:store.state,demo:store.demo})
-      });
-    }catch(err){
-      // silent sheet error
-    }
   }catch(err){
     // silent otp verify error
     boxes.forEach(b=>b.classList.add('has-error'));
     document.getElementById('otp-error').classList.add('visible');
-    setOtpStatus(err?.message||'Invalid OTP. Please try again.','error');
+    setOtpStatus('Invalid OTP. Please try again.','error');
     trackOtpAction('attempt',{success:false,error:err?.message});
     btn.disabled=false;
     btn.textContent='Verify OTP';
@@ -939,6 +930,21 @@ async function verifyOtp(){
     slotBox.style.display='block';
   }else{slotBox.style.display='none';}
   showStep('success');
+
+  // Send lead data in background so UI is not delayed after OTP verification.
+  fetch(SHEETS_URL,{
+    method:'POST',
+    mode:'no-cors',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({
+      name:store.name,
+      mobile:store.mobile,
+      mode:store.mode,
+      gradYear:store.gradYear,
+      state:store.state,
+      demo:store.demo
+    })
+  }).catch(()=>{});
 }
 
 validateStep1();
