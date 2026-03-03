@@ -855,7 +855,7 @@ async function getOrInitRecaptcha(auth, RecaptchaVerifier){
 
 async function sendOtpToMobile(isResend=false){
   if(!window.firebasePhoneAuth){
-    setOtpStatus('Firebase SDK not loaded. Refresh and try again.','error');
+    setOtpStatus('Unable to send OTP right now. Please refresh and try again.','error');
     return;
   }
   const { auth, RecaptchaVerifier, signInWithPhoneNumber } = window.firebasePhoneAuth;
@@ -873,7 +873,7 @@ async function sendOtpToMobile(isResend=false){
     trackOtpAction('sent_success');
   }catch(err){
     // error logged to server if needed
-    setOtpStatus(err?.message||'Failed to send OTP. Try again.','error');
+    setOtpStatus('Failed to send OTP. Please try again.','error');
     trackOtpAction('send_failed',{error:err?.message});
   }finally{
     verifyBtn.disabled=false;
