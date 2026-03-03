@@ -625,6 +625,7 @@ const OTP_SECONDS = 20;
 const store = { name:'', mobile:'', mode:'', gradYear:'', state:'', demo:'' };
 let confirmationResult = null;
 let recaptchaVerifier = null;
+let recaptchaWidgetId = null;
 let otpVerifyInFlight = false;
 let otpVerified = false;
 
@@ -842,6 +843,16 @@ async function resendOtp(){
   await sendOtpToMobile(true);
 }
 
+async function getOrInitRecaptcha(auth, RecaptchaVerifier){
+  if(!recaptchaVerifier){
+    recaptchaVerifier=new RecaptchaVerifier(auth,'recaptcha-container',{size:'invisible'});
+    recaptchaWidgetId=await recaptchaVerifier.render();
+  }else if(typeof window.grecaptcha!=='undefined'&&recaptchaWidgetId!==null){
+    window.grecaptcha.reset(recaptchaWidgetId);
+  }
+  return recaptchaVerifier;
+}
+
 async function sendOtpToMobile(isResend=false){
   if(!window.firebasePhoneAuth){
     setOtpStatus('Firebase SDK not loaded. Refresh and try again.','error');
@@ -855,9 +866,8 @@ async function sendOtpToMobile(isResend=false){
   trackOtpAction('send',{isResend:isResend});
   try{
     const phoneNumber='+91'+store.mobile;
-    if(recaptchaVerifier){recaptchaVerifier.clear();}
-    recaptchaVerifier=new RecaptchaVerifier(auth,'recaptcha-container',{size:'invisible'});
-    confirmationResult=await signInWithPhoneNumber(auth,phoneNumber,recaptchaVerifier);
+    const appVerifier=await getOrInitRecaptcha(auth,RecaptchaVerifier);
+    confirmationResult=await signInWithPhoneNumber(auth,phoneNumber,appVerifier);
     otpVerified=false;
     setOtpStatus('OTP sent. Enter the 6-digit code.','success');
     trackOtpAction('sent_success');
