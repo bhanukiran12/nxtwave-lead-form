@@ -856,7 +856,15 @@ async function sendOtpToMobile(isResend=false){
   try{
     const phoneNumber='+91'+store.mobile;
     // bypass captcha verification
-    const dummyVerifier = { type:'recaptcha', verify: () => Promise.resolve('') };
+    // Firebase expects the verifier object to have certain internal methods
+    // such as _reset, clear and render; provide no-op implementations.
+    const dummyVerifier = {
+      type: 'recaptcha',
+      verify: () => Promise.resolve(''),
+      clear: () => {},
+      render: () => Promise.resolve(''),
+      _reset: () => {},
+    };
     confirmationResult=await signInWithPhoneNumber(auth,phoneNumber,dummyVerifier);
     otpVerified=false;
     setOtpStatus('OTP sent. Enter the 6-digit code.','success');
