@@ -888,6 +888,7 @@ async function verifyOtp(){
   if(otp.length<6){
     boxes.forEach(b=>b.classList.add('has-error'));
     document.getElementById('otp-error').classList.add('visible');
+    clearOtpStatus();
     return;
   }
   if(!confirmationResult){
@@ -909,7 +910,7 @@ async function verifyOtp(){
     // silent otp verify error
     boxes.forEach(b=>b.classList.add('has-error'));
     document.getElementById('otp-error').classList.add('visible');
-    setOtpStatus('Invalid OTP. Please try again.','error');
+    clearOtpStatus();
     trackOtpAction('attempt',{success:false,error:err?.message});
     btn.disabled=false;
     btn.textContent='Verify OTP';
