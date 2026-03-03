@@ -619,6 +619,46 @@ pushDataLayerEvent('page_load', {
 <script>
 'use strict';
 
+// Suppress noisy reCAPTCHA connectivity errors in browser console.
+const RECAPTCHA_ERROR_PATTERNS = [
+  'Could not connect to the reCAPTCHA service',
+  'reCAPTCHA',
+  'recaptcha'
+];
+
+function isRecaptchaNoise(value) {
+  const text = String(value || '');
+  return RECAPTCHA_ERROR_PATTERNS.some(pattern => text.includes(pattern));
+}
+
+const originalConsoleError = console.error.bind(console);
+const originalConsoleWarn = console.warn.bind(console);
+
+function hasRecaptchaNoise(args) {
+  return Array.from(args || []).some(item => isRecaptchaNoise(item));
+}
+
+console.error = (...args) => {
+  if (hasRecaptchaNoise(args)) return;
+  originalConsoleError(...args);
+};
+
+console.warn = (...args) => {
+  if (hasRecaptchaNoise(args)) return;
+  originalConsoleWarn(...args);
+};
+
+window.addEventListener('error', (event) => {
+  const message = event?.message || event?.error?.message || '';
+  if (isRecaptchaNoise(message)) event.preventDefault();
+});
+
+window.addEventListener('unhandledrejection', (event) => {
+  const reason = event?.reason;
+  const message = reason?.message || reason || '';
+  if (isRecaptchaNoise(message)) event.preventDefault();
+});
+
 const SHEETS_URL  = 'https://script.google.com/macros/s/AKfycbzmsMz3vGs2781L20yH2emHKt0ow7bpTvmcNoQuxhSxZaUuFN0VGAu3-zaySjDkgtw5/exec';
 const OTP_SECONDS = 20;
 
