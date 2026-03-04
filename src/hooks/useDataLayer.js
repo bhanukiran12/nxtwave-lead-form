@@ -30,6 +30,16 @@ function getNextUniqueEventId(existing = []) {
 export default function useDataLayer({ parentOrigin }) {
   const formDataLayerRef = useRef(null);
   const uniqueEventIdRef = useRef(1);
+  const targetOriginRef = useRef(parentOrigin);
+
+  useEffect(() => {
+    // postMessage requires strict origin format: scheme + host (+ optional port), no path.
+    try {
+      targetOriginRef.current = new URL(parentOrigin).origin;
+    } catch {
+      targetOriginRef.current = parentOrigin;
+    }
+  }, [parentOrigin]);
 
   const pushDataLayerEvent = (eventName, eventData = {}) => {
     if (!formDataLayerRef.current) return;
@@ -58,7 +68,7 @@ export default function useDataLayer({ parentOrigin }) {
       try {
         window.parent.postMessage(
           { type: 'DATALAYER_UPDATE', payload: toPostMessageSafeValue(window.dataLayer) },
-          parentOrigin
+          targetOriginRef.current
         );
       } catch {
         // no-op: analytics bridge must not break flow
