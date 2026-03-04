@@ -5,14 +5,10 @@ import StepTwo from './components/StepTwo';
 import StepThree from './components/StepThree';
 import SuccessStep from './components/SuccessStep';
 import {
-  DRAFT_USER_API_KEY,
-  DRAFT_USER_API_URL,
   GRAD_YEARS_CLASSROOM,
   GRAD_YEARS_ONLINE,
   PARENT_PAGE_URL,
   PARENT_WINDOW_ORIGIN,
-  SEGMENT_TRACK_URL,
-  SEGMENT_WRITE_KEY,
   SHEETS_URL
 } from './constants/formConstants';
 import useDataLayer from './hooks/useDataLayer';
@@ -25,42 +21,6 @@ const escapeHtml = (v) =>
   v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const isValidName = (v) => /^[a-zA-Z\s]{3,60}$/.test(v.trim());
 const isValidMobile = (v) => /^\d{10}$/.test(v.trim());
-
-function getOrdinal(day) {
-  const rem10 = day % 10;
-  const rem100 = day % 100;
-  if (rem10 === 1 && rem100 !== 11) return `${day}st`;
-  if (rem10 === 2 && rem100 !== 12) return `${day}nd`;
-  if (rem10 === 3 && rem100 !== 13) return `${day}rd`;
-  return `${day}th`;
-}
-
-function formatPreferredDate(ymd) {
-  if (!ymd) return '';
-  const [year, month, day] = ymd.split('-').map(Number);
-  if (!year || !month || !day) return '';
-  const dt = new Date(year, month - 1, day);
-  const monthName = dt.toLocaleString('en-IN', { month: 'long' });
-  return `${getOrdinal(day)} ${monthName} ${year}`;
-}
-
-function formatPreferredTime(datetimeValue) {
-  if (!datetimeValue) return '';
-  const [datePart, timePart] = String(datetimeValue).split(' ');
-  if (!datePart || !timePart) return '';
-  const [hh, mm] = timePart.split(':').map(Number);
-  if (!Number.isFinite(hh) || !Number.isFinite(mm)) return '';
-  const meridian = hh >= 12 ? 'PM' : 'AM';
-  const hour12 = hh % 12 || 12;
-  return `${hour12}:${String(mm).padStart(2, '0')} ${meridian}`;
-}
-
-function toIsoWithIst(datetimeValue) {
-  if (!datetimeValue) return '';
-  const [datePart, timePart] = String(datetimeValue).split(' ');
-  if (!datePart || !timePart) return '';
-  return `${datePart}T${timePart}+05:30`;
-}
 
 function App() {
   const [step, setStep] = useState(1);
@@ -81,86 +41,6 @@ function App() {
     parentOrigin: PARENT_WINDOW_ORIGIN,
     parentPageUrl: PARENT_PAGE_URL
   });
-
-  const createDraftUserAndGetUuid = async (phoneNumber) => {
-    const payload = {
-      clientKeyDetailsId: 1,
-      data: JSON.stringify({
-        phone_number: phoneNumber,
-        country_code: '+91'
-      })
-    };
-
-    console.log('[DraftUser] Request payload:', payload);
-    const response = await fetch(DRAFT_USER_API_URL, {
-      method: 'POST',
-      headers: {
-        Accept: 'application/json',
-        'Content-Type': 'application/json',
-        'x-api-key': DRAFT_USER_API_KEY
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      console.error('[DraftUser] API error status:', response.status);
-      throw new Error(`Draft user API failed with status ${response.status}`);
-    }
-
-    const json = await response.json();
-    const uuid = (
-      json?.uuid ||
-      json?.user_id ||
-      json?.userId ||
-      json?.id ||
-      json?.data?.uuid ||
-      json?.data?.user_id ||
-      json?.data?.userId ||
-      ''
-    );
-    console.log('[DraftUser] API response:', json);
-    console.log('[DraftUser] Resolved UUID:', uuid);
-    return uuid;
-  };
-
-  const sendSegmentTrack = async (payload, uuid) => {
-    const formData = payload?.form_data || {};
-    const trackBody = {
-      event: 'Demo Registration Success',
-      properties: {
-        utm_campaign: formData.utm_campaign || null,
-        utm_source: formData.utm_source || null,
-        utm_medium: formData.utm_medium || null,
-        lead_category: formData.lead_category || 'intensive_lead',
-        intermediate_completion_year: formData.intermediateOr12CompletionYear || null,
-        utm_term: formData.utm_term || null,
-        utm_content: formData.utm_content || null,
-        interested_career_path: formData.interestedCareerPath || null,
-        occupation: formData.currentOccupation || null,
-        no_of_hours_can_be_spent_on_learning: formData.dedicateLearningHours || null,
-        year_of_graduation: formData.graduationYear || formData.yearOfGraduation || null,
-        user_preferred_time: formData.timeSlots || formatPreferredTime(formData.selected_webinar_slot_datetime),
-        demo_datetime: toIsoWithIst(formData.selected_webinar_slot_datetime),
-        user_preferred_date: formatPreferredDate(formData.selectADateToBookASlot),
-        preferred_language: formData.language || 'Telugu',
-        degree: formData.degree || 'B.Tech / BE'
-      },
-      userId: uuid || '',
-      writeKey: SEGMENT_WRITE_KEY
-    };
-
-    console.log('[Segment] Track payload:', trackBody);
-    const response = await fetch(SEGMENT_TRACK_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(trackBody)
-    });
-    if (!response.ok) {
-      console.error('[Segment] Track failed status:', response.status);
-      throw new Error(`Segment track failed with status ${response.status}`);
-    }
-    console.log('[Segment] Track success status:', response.status);
-  };
 
   const onOtpVerified = async () => {
     triggerConfetti();
@@ -186,14 +66,24 @@ function App() {
         console.error('[Sheets] Request failed:', err);
       });
 
-    // 1) Create draft user and fetch UUID, 2) fire segment track with that UUID.
+    // Server-side (Netlify Function): DraftUser UUID + Segment track to avoid CORS and protect keys.
     try {
-      console.log('[Flow] Starting DraftUser -> Segment flow');
-      const uuid = await createDraftUserAndGetUuid(store.mobile);
-      await sendSegmentTrack(submissionPayload, uuid);
-      console.log('[Flow] DraftUser -> Segment flow completed successfully');
+      console.log('[Flow] Calling Netlify post-otp-events function');
+      const response = await fetch('/.netlify/functions/post-otp-events', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phoneNumber: store.mobile,
+          submissionPayload
+        })
+      });
+      const json = await response.json().catch(() => ({}));
+      if (!response.ok || !json?.ok) {
+        throw new Error(json?.error || `Function failed with status ${response.status}`);
+      }
+      console.log('[Flow] Netlify function success:', json);
     } catch (err) {
-      console.error('[Flow] DraftUser -> Segment flow failed:', err);
+      console.error('[Flow] Netlify function flow failed:', err);
       // keep booking success flow non-blocking even if analytics APIs fail
     }
   };
