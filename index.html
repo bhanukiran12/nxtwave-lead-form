@@ -483,15 +483,32 @@ window.dataLayer = window.dataLayer || [];
 const PARENT_WINDOW_ORIGIN = 'https://ccbp-4-0-technical-intensive-project.webflow.io';
 
 // ── Push data layer snapshot to parent iframe host ──
+function toPostMessageSafeValue(value) {
+  const seen = new WeakSet();
+  return JSON.parse(JSON.stringify(value, (key, val) => {
+    if (typeof val === 'function' || typeof val === 'symbol' || typeof val === 'undefined') return null;
+    if (typeof val === 'bigint') return String(val);
+    if (val && typeof val === 'object') {
+      if (seen.has(val)) return null;
+      seen.add(val);
+    }
+    return val;
+  }));
+}
+
 function pushDataLayerToParent() {
   if (window.parent && window.parent !== window) {
-    window.parent.postMessage(
-      {
-        type: 'DATALAYER_UPDATE',
-        payload: window.dataLayer
-      },
-      PARENT_WINDOW_ORIGIN
-    );
+    try {
+      window.parent.postMessage(
+        {
+          type: 'DATALAYER_UPDATE',
+          payload: toPostMessageSafeValue(window.dataLayer)
+        },
+        PARENT_WINDOW_ORIGIN
+      );
+    } catch (e) {
+      // avoid breaking form flow if parent messaging payload is not cloneable
+    }
   }
 }
 
@@ -692,6 +709,172 @@ const isValidMobile  = v => /^\d{10}$/.test(v.trim());
 
 const GRAD_YEARS_ONLINE    = ['2026','2025','2024','2023','2022','2021','2020'];
 const GRAD_YEARS_CLASSROOM = ['2026','2025','2024'];
+const FORM_ID = 'book-a-free-session';
+const STEP_ID = 'USER_EXTRA_INFO_DETAILS';
+const LEAD_CATEGORY = 'intensive_lead';
+let parentUtmFromMessage = {};
+
+function pad2(num) {
+  return String(num).padStart(2, '0');
+}
+
+function formatDateYMD(date) {
+  return date.getFullYear() + '-' + pad2(date.getMonth() + 1) + '-' + pad2(date.getDate());
+}
+
+function formatDateTimeYMDHMS(date) {
+  return formatDateYMD(date) + ' ' + pad2(date.getHours()) + ':' + pad2(date.getMinutes()) + ':' + pad2(date.getSeconds());
+}
+
+function parseDemoSlot(demoValue) {
+  if (!demoValue) return { slotDate: '', slotDateTime: '', timeSlot: '' };
+  const parts = demoValue.split(' - ');
+  if (parts.length !== 2) return { slotDate: '', slotDateTime: '', timeSlot: '' };
+
+  const dayLabel = (parts[0] || '').trim().toLowerCase();
+  const timeRaw = (parts[1] || '').trim().toUpperCase();
+  const timeMatch = timeRaw.match(/^(\d{1,2}):(\d{2})(AM|PM)$/);
+  if (!timeMatch) return { slotDate: '', slotDateTime: '', timeSlot: '' };
+
+  const now = new Date();
+  const slotDateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  if (dayLabel === 'tomorrow') {
+    slotDateObj.setDate(slotDateObj.getDate() + 1);
+  }
+
+  let hour = parseInt(timeMatch[1], 10);
+  const minute = parseInt(timeMatch[2], 10);
+  const meridian = timeMatch[3];
+  if (meridian === 'PM' && hour !== 12) hour += 12;
+  if (meridian === 'AM' && hour === 12) hour = 0;
+
+  const slotStart = new Date(slotDateObj);
+  slotStart.setHours(hour, minute, 0, 0);
+  const slotEnd = new Date(slotStart.getTime() + (60 * 60 * 1000));
+
+  const startHour12 = slotStart.getHours() % 12 || 12;
+  const endHour12 = slotEnd.getHours() % 12 || 12;
+  const startMeridian = slotStart.getHours() >= 12 ? 'PM' : 'AM';
+  const endMeridian = slotEnd.getHours() >= 12 ? 'PM' : 'AM';
+
+  return {
+    slotDate: formatDateYMD(slotStart),
+    slotDateTime: formatDateTimeYMDHMS(slotStart),
+    timeSlot: startHour12 + startMeridian + ' - ' + endHour12 + endMeridian
+  };
+}
+
+function extractUtmFromSearchParams(params) {
+  const utm = {};
+  for (const [key, value] of params.entries()) {
+    if (key.toLowerCase().startsWith('utm_')) {
+      utm[key] = value;
+    }
+  }
+  return utm;
+}
+
+function extractUtmFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return extractUtmFromSearchParams(parsed.searchParams);
+  } catch (e) {
+    return {};
+  }
+}
+
+function extractUtmFromParentWindowLocation() {
+  try {
+    if (window.parent && window.parent !== window && window.parent.location && window.parent.location.href) {
+      return extractUtmFromUrl(window.parent.location.href);
+    }
+  } catch (e) {
+    // blocked by browser cross-origin policy; use message/referrer fallback
+  }
+  return {};
+}
+
+function extractUtmParams() {
+  const fromReferrer = extractUtmFromUrl(document.referrer || '');
+  const fromParentLocation = extractUtmFromParentWindowLocation();
+  const fromIframeUrl = extractUtmFromUrl(window.location.href);
+  return {
+    ...fromReferrer,
+    ...fromParentLocation,
+    ...parentUtmFromMessage,
+    ...fromIframeUrl
+  };
+}
+
+window.addEventListener('message', (event) => {
+  if (event.origin !== PARENT_WINDOW_ORIGIN) return;
+  const data = event.data || {};
+  if (data.type === 'PARENT_URL_CONTEXT' && typeof data.url === 'string') {
+    parentUtmFromMessage = {
+      ...parentUtmFromMessage,
+      ...extractUtmFromUrl(data.url)
+    };
+  }
+  if (data.type === 'PARENT_UTM' && data.payload && typeof data.payload === 'object') {
+    const incoming = {};
+    Object.keys(data.payload).forEach((key) => {
+      if (key.toLowerCase().startsWith('utm_')) incoming[key] = String(data.payload[key] || '');
+    });
+    parentUtmFromMessage = {
+      ...parentUtmFromMessage,
+      ...incoming
+    };
+  }
+});
+
+function requestParentUrlContext() {
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, PARENT_WINDOW_ORIGIN);
+  }
+}
+
+function getPreferredModeValue(mode) {
+  if (mode === 'In Classroom') return 'Learn at Training Center (Offline)';
+  if (mode === 'Online') return 'Learn Online';
+  return mode || '';
+}
+
+function buildSubmissionPayload() {
+  const slotInfo = parseDemoSlot(store.demo);
+  const utmParams = extractUtmParams();
+  const formSubmissionDateTime = formatDateTimeYMDHMS(new Date());
+  const userId = (window.crypto && window.crypto.randomUUID) ? window.crypto.randomUUID() : ('user_' + Date.now());
+  const formSubmissionId = String(Date.now());
+
+  const formData = {
+    selected_webinar_slot_datetime: slotInfo.slotDateTime,
+    fullName: store.name,
+    language: 'Telugu',
+    stepId: STEP_ID,
+    phoneNumber: store.mobile,
+    frontend_url: window.location.href,
+    whatsappInfoStatus: true,
+    acceptTAndCAndPrivacyPolicy: true,
+    degree: 'B.Tech / BE',
+    lead_category: LEAD_CATEGORY,
+    graduationYear: store.gradYear,
+    preferredMode: getPreferredModeValue(store.mode),
+    timeSlots: slotInfo.timeSlot,
+    selectADateToBookASlot: slotInfo.slotDate,
+    yearOfGraduation: store.gradYear,
+    interestedCareerPath: 'Software job',
+    dedicateLearningHours: 'More than 4 hours',
+    ...utmParams
+  };
+
+  return {
+    form_data: formData,
+    form_id: FORM_ID,
+    form_submission_id: formSubmissionId,
+    user_id: userId,
+    form_submission_datetime: formSubmissionDateTime
+  };
+}
 
 function populateGradYear(mode) {
   const sel = document.getElementById('inp-gradyear');
@@ -988,22 +1171,17 @@ async function verifyOtp(){
   showStep('success');
 
   // Send lead data in background so UI is not delayed after OTP verification.
+  const submissionPayload = buildSubmissionPayload();
   fetch(SHEETS_URL,{
     method:'POST',
     mode:'no-cors',
     headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({
-      name:store.name,
-      mobile:store.mobile,
-      mode:store.mode,
-      gradYear:store.gradYear,
-      state:store.state,
-      demo:store.demo
-    })
+    body:JSON.stringify(submissionPayload)
   }).catch(()=>{});
 }
 
 validateStep1();
+requestParentUrlContext();
 </script>
 </body>
 </html>
