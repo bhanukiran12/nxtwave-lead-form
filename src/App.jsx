@@ -35,7 +35,7 @@ function App() {
     trackFieldInteraction,
     trackOtpAction,
     trackFormSubmission
-  } = useDataLayer({ parentOrigin: PARENT_WINDOW_ORIGIN });
+  } = useDataLayer({ parentOrigin: PARENT_PAGE_URL});
 
   const { buildSubmissionPayload } = useSubmissionPayload({
     parentOrigin: PARENT_WINDOW_ORIGIN,
