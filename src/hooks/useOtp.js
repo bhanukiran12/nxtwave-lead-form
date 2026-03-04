@@ -91,10 +91,10 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     }
   };
 
-  const verifyOtp = async () => {
+  const verifyOtp = async (otpOverride = '') => {
     if (otpVerifiedRef.current || otpVerifyInFlightRef.current) return false;
 
-    const otp = otpDigits.join('');
+    const otp = otpOverride || otpDigits.join('');
     if (otp.length < 6) {
       setOtpError(true);
       clearOtpStatus();
@@ -157,7 +157,8 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     clearOtpStatus();
 
     if (clean && idx < 5) otpRefs.current[idx + 1]?.focus();
-    if (next.join('').length === 6) setTimeout(() => verifyOtp(), 0);
+    const nextOtp = next.join('');
+    if (nextOtp.length === 6) setTimeout(() => verifyOtp(nextOtp), 0);
   };
 
   const handleOtpKeyDown = (e, idx) => {
@@ -178,7 +179,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
     setOtpDigits(next);
     otpRefs.current[Math.min(p.length, 5)]?.focus();
-    if (p.length >= 6) setTimeout(() => verifyOtp(), 0);
+    if (p.length >= 6) setTimeout(() => verifyOtp(next.join('')), 0);
   };
 
   useEffect(() => {

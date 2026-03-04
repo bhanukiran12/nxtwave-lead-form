@@ -57,17 +57,12 @@ export default function useDataLayer({ parentOrigin }) {
 
     fdl.events.push(event);
     window.dataLayer = window.dataLayer || [];
-    window.dataLayer.push({
-      event: eventName,
-      ...eventData,
-      sessionId: fdl.sessionId,
-      'gtm.uniqueEventId': uniqueEventId
-    });
+    window.dataLayer.push(event);
 
     if (window.parent && window.parent !== window) {
       try {
         window.parent.postMessage(
-          { type: 'DATALAYER_UPDATE', payload: toPostMessageSafeValue(window.dataLayer) },
+          { type: 'DATALAYER_UPDATE', payload: toPostMessageSafeValue(event) },
           targetOriginRef.current
         );
       } catch {
@@ -80,9 +75,8 @@ export default function useDataLayer({ parentOrigin }) {
     const fdl = formDataLayerRef.current;
     if (!fdl) return;
 
-    if (!fdl.formMetrics.viewedSteps.includes(stepNumber)) {
-      fdl.formMetrics.viewedSteps.push(stepNumber);
-    }
+    if (fdl.formMetrics.viewedSteps.includes(stepNumber)) return;
+    fdl.formMetrics.viewedSteps.push(stepNumber);
 
     pushDataLayerEvent('step_viewed', {
       step: stepNumber,
@@ -140,6 +134,7 @@ export default function useDataLayer({ parentOrigin }) {
   useEffect(() => {
     window.dataLayer = window.dataLayer || [];
     const sessionId = sessionStorage.getItem('nxtwave_session_id') || generateSessionId();
+    const pageLoadKey = `nxtwave_page_load_tracked_${sessionId}`;
 
     uniqueEventIdRef.current = getNextUniqueEventId(window.dataLayer);
 
@@ -163,11 +158,15 @@ export default function useDataLayer({ parentOrigin }) {
 
     sessionStorage.setItem('nxtwave_session_id', sessionId);
 
-    pushDataLayerEvent('page_load', {
-      pageTitle: document.title,
-      pageUrl: window.location.href,
-      referrer: document.referrer || 'direct'
-    });
+    // React StrictMode can run mount effects twice in development; only track once per session.
+    if (!sessionStorage.getItem(pageLoadKey)) {
+      pushDataLayerEvent('page_load', {
+        pageTitle: document.title,
+        pageUrl: window.location.href,
+        referrer: document.referrer || 'direct'
+      });
+      sessionStorage.setItem(pageLoadKey, '1');
+    }
   }, []);
 
   return {
