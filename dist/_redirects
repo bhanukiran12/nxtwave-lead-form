@@ -1,0 +1,8 @@
+# Netlify proxy rules for external API
+# This makes the browser request appear same-origin
+
+# Proxy /api/* requests to external backend
+/api/post-otp-events https://nxtwave-lead-form-s7l4.vercel.app/api/post-otp-events 200
+
+# If backend is hosted elsewhere (e.g., Heroku, Render), update the line below:
+# /api/post-otp-events https://your-backend.herokuapp.com/api/post-otp-events 200
