@@ -126,6 +126,7 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
     const utmParams = extractUtmParams();
     const now = new Date();
     const frontendUrl = resolveFrontendUrl();
+    console.log('[Payload] Extracted UTM params:', utmParams);
 
     return {
       form_data: {
@@ -137,7 +138,6 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
         frontend_url: frontendUrl,
         whatsappInfoStatus: true,
         acceptTAndCAndPrivacyPolicy: true,
-        degree: 'B.Tech / BE',
         lead_category: LEAD_CATEGORY,
         graduationYear: store.gradYear,
         preferredMode: getPreferredModeValue(store.mode),

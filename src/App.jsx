@@ -9,6 +9,7 @@ import {
   GRAD_YEARS_ONLINE,
   PARENT_PAGE_URL,
   PARENT_WINDOW_ORIGIN,
+  POST_OTP_EVENTS_API_URL,
   SHEETS_URL
 } from './constants/formConstants';
 import useDataLayer from './hooks/useDataLayer';
@@ -66,10 +67,9 @@ function App() {
         console.error('[Sheets] Request failed:', err);
       });
 
-    // Server-side (Netlify Function): DraftUser UUID + Segment track to avoid CORS and protect keys.
     try {
-      console.log('[Flow] Calling Netlify post-otp-events function');
-      const response = await fetch('/.netlify/functions/post-otp-events', {
+      console.log('[Flow] Calling backend /api/post-otp-events');
+      const response = await fetch(POST_OTP_EVENTS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -79,12 +79,11 @@ function App() {
       });
       const json = await response.json().catch(() => ({}));
       if (!response.ok || !json?.ok) {
-        throw new Error(json?.error || `Function failed with status ${response.status}`);
+        throw new Error(json?.error || `Backend API failed with status ${response.status}`);
       }
-      console.log('[Flow] Netlify function success:', json);
+      console.log('[Flow] Backend flow success:', json);
     } catch (err) {
-      console.error('[Flow] Netlify function flow failed:', err);
-      // keep booking success flow non-blocking even if analytics APIs fail
+      console.error('[Flow] Backend flow failed:', err);
     }
   };
 
