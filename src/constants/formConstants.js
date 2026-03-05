@@ -1,5 +1,5 @@
 export const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwwKpFG857m-BoVomkbE16h5-pK5Yq0CxfML-IMUThaMCql7ldIkEuHrA9u5EuczOfpxQ/exec';
-export const POST_OTP_EVENTS_API_URL = 'https://resonant-rugelach-d01950.netlify.app/api/post-otp-events';
+export const POST_OTP_EVENTS_API_URL = '/api/post-otp-events';
 export const OTP_SECONDS = 20;
 export const PARENT_WINDOW_ORIGIN = 'https://ccbp-4-0-technical-intensive-project.webflow.io';
 export const PARENT_PAGE_URL = 'https://ccbp-4-0-technical-intensive-project.webflow.io/new-intensive';
