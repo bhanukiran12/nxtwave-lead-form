@@ -1,4 +1,7 @@
-export const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwwKpFG857m-BoVomkbE16h5-pK5Yq0CxfML-IMUThaMCql7ldIkEuHrA9u5EuczOfpxQ/exec';
+export const SHEETS_URL = '/api/sheets';
+
+// If not using Netlify proxy for Google Sheets, use the direct URL:
+// export const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwwKpFG857m-BoVomkbE16h5-pK5Yq0CxfML-IMUThaMCql7ldIkEuHrA9u5EuczOfpxQ/exec';
 export const OTP_SECONDS = 20;
 export const PARENT_WINDOW_ORIGIN = 'https://ccbp-4-0-technical-intensive-project.webflow.io';
 export const PARENT_PAGE_URL = 'https://ccbp-4-0-technical-intensive-project.webflow.io/new-intensive';
