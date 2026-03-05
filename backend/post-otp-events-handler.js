@@ -5,14 +5,18 @@ const DRAFT_USER_CSRF_COOKIE = process.env.DRAFT_USER_CSRF_COOKIE || 'csrftoken=
 const SEGMENT_TRACK_URL = process.env.SEGMENT_TRACK_URL || 'https://api.segment.io/v1/track';
 const SEGMENT_WRITE_KEY = process.env.SEGMENT_WRITE_KEY || 'pSF1EDPoC6XzbKeiyn2N3StqrlGdPHFT';
 
-function setCors(res) {
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'Content-Type, Authorization, X-Requested-With, x-api-key, Cookie'
-  );
-  res.setHeader('Access-Control-Max-Age', '86400');
+// CORS headers - explicitly set for all responses
+const CORS_HEADERS = {
+  'Access-Control-Allow-Origin': 'https://nxtwave-lead.netlify.app',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-api-key, Cookie',
+  'Access-Control-Max-Age': '86400'
+};
+
+function setCorsHeaders(res) {
+  Object.entries(CORS_HEADERS).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
 }
 
 function getOrdinal(day) {
@@ -59,7 +63,7 @@ async function callDraftUserApi(phoneNumber) {
 
   const payload = {
     clientKeyDetailsId: 1,
-    data: `'${innerJson}"`
+    data: `'${innerJson}'`
   };
 
   console.log('[DraftUser] Request payload:', payload);
@@ -137,12 +141,16 @@ async function callSegmentTrack(submissionPayload, userId) {
 }
 
 export default async function handler(req, res) {
-  setCors(res);
-
+  // Handle preflight OPTIONS request first - return 204 with CORS headers only
   if (req.method === 'OPTIONS') {
-    return res.status(200).end();
+    setCorsHeaders(res);
+    return res.status(204).end();
   }
 
+  // Set CORS headers for all other requests
+  setCorsHeaders(res);
+
+  // Only allow POST method
   if (req.method !== 'POST') {
     return res.status(405).json({ ok: false, error: 'Method not allowed' });
   }
