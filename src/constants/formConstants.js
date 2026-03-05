@@ -3,7 +3,7 @@ export const OTP_SECONDS = 20;
 export const PARENT_WINDOW_ORIGIN = 'https://ccbp-4-0-technical-intensive-project.webflow.io';
 export const PARENT_PAGE_URL = 'https://ccbp-4-0-technical-intensive-project.webflow.io/new-intensive';
 export const TARGET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1mYoWaXaJUY9cYVDxGy7lSWAWIwmfsDIjIziefAsYKeA/edit?usp=sharing';
-export const POST_OTP_EVENTS_API_URL = '/api/post-otp-events';
+export const POST_OTP_EVENTS_API_URL = 'https://nxtwave-lead-form-s7l4.vercel.app/api/post-otp-events';
 
 export const GRAD_YEARS_ONLINE = ['2026', '2025', '2024', '2023', '2022', '2021', '2020'];
 export const GRAD_YEARS_CLASSROOM = ['2026', '2025', '2024'];
