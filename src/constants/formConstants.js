@@ -1,5 +1,4 @@
-export const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwwKpFG857m-BoVomkbE16h5-pK5Yq0CxfML-IMUThaMCql7ldIkEuHrA9u5EuczOfpxQ/exec';
-
+export const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwesneK6c8U04uaawc-vDEgy81tzd10AL_O8yJFYO6jGAyYPDi_i9y5337gbNQXeRRgwQ/exec'
 // Backend API URL - Update this to your deployed backend URL
 export const POST_OTP_EVENTS_API_URL = 'https://nxtwave-lead-backend.vercel.app/api/post-otp-events';
 export const OTP_SECONDS = 20;

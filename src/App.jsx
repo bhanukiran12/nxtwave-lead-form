@@ -208,6 +208,8 @@ function App() {
   const handleGoToStep3 = () => {
     if (!step2Valid) return;
 
+    console.log('[Step2] Proceeding to Step3 - gradYear:', store.gradYear, 'state:', store.state, 'demo:', store.demo);
+    
     trackFieldInteraction('gradYear', store.gradYear);
     trackFieldInteraction('state', store.state);
     trackFieldInteraction('demo', store.demo);

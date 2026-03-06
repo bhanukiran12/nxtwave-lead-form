@@ -106,6 +106,7 @@ async function callSegmentTrack(submissionPayload, userId) {
 
   // Prove name is in the form data
   console.log('[FormData] fullName received:', formData.fullName);
+  console.log('[FormData] All form data:', JSON.stringify(formData));
 
   const body = {
     event: 'Demo Registration Success',
@@ -128,6 +129,8 @@ async function callSegmentTrack(submissionPayload, userId) {
     userId,
     writeKey: SEGMENT_WRITE_KEY
   };
+
+  console.log('[Segment] Track payload:', JSON.stringify(body));
 
   console.log('[Segment] Request payload:', body);
 

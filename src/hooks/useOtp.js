@@ -17,6 +17,8 @@ const extractReqId = (data) => (
 );
 
 export default function useOtp({ mobile, onOtpAction, onVerified }) {
+  console.log('[useOtp] Hook initialized with mobile:', mobile);
+  
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState(false);
   const [otpStatus, setOtpStatus] = useState({ message: '', type: 'info' });
