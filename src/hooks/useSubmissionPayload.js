@@ -128,6 +128,9 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
     const frontendUrl = resolveFrontendUrl();
     console.log('[Payload] Extracted UTM params:', utmParams);
 
+    // Prove name is in the form data
+    console.log('[Payload] fullName being submitted:', store.name);
+
     return {
       form_data: {
         selected_webinar_slot_datetime: slotInfo.slotDateTime,

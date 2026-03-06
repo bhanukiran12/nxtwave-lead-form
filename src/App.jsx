@@ -189,6 +189,11 @@ function App() {
     trackFieldInteraction('name', safeName);
     trackFieldInteraction('mobile', mobile);
 
+    // Prove name is in the form data
+    console.log('[FormData] Name captured:', safeName);
+    console.log('[FormData] Mobile captured:', mobile);
+    console.log('[FormData] Mode selected:', store.mode);
+
     triggerConfetti();
     setStep(2);
     trackStepView(2);

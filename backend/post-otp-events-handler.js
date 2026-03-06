@@ -104,6 +104,9 @@ async function callSegmentTrack(submissionPayload, userId) {
   const formData = submissionPayload?.form_data || {};
   if (!userId) throw new Error('UUID is required for Segment tracking');
 
+  // Prove name is in the form data
+  console.log('[FormData] fullName received:', formData.fullName);
+
   const body = {
     event: 'Demo Registration Success',
     properties: {
@@ -119,7 +122,8 @@ async function callSegmentTrack(submissionPayload, userId) {
       utm_medium: formData.utm_medium || null,
       utm_source: formData.utm_source || null,
       utm_term: formData.utm_term || null,
-      year_of_graduation: formData.graduationYear || formData.yearOfGraduation || null
+      year_of_graduation: formData.graduationYear || formData.yearOfGraduation || null,
+      full_name: formData.fullName || null
     },
     userId,
     writeKey: SEGMENT_WRITE_KEY
