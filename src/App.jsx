@@ -297,7 +297,7 @@ function App() {
             otpStatus={otp.otpStatus}
             resendSeconds={otp.resendSeconds}
             verifyLoading={otp.verifyLoading}
-            firebaseReady={otp.firebaseReady}
+            otpProviderReady={otp.otpProviderReady}
             onOtpRef={otp.setOtpRef}
             onOtpInput={otp.handleOtpInput}
             onOtpKeyDown={otp.handleOtpKeyDown}

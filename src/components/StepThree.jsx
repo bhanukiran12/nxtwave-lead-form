@@ -7,7 +7,7 @@ function StepThree({
   otpStatus,
   resendSeconds,
   verifyLoading,
-  firebaseReady,
+  otpProviderReady,
   onOtpRef,
   onOtpInput,
   onOtpKeyDown,
@@ -57,12 +57,12 @@ function StepThree({
           </div>
 
           <div className={`otp-status ${otpStatus.message ? `visible ${otpStatus.type}` : ''}`}>{otpStatus.message}</div>
-          <div id="recaptcha-container" />
+          <div id="msg91-captcha-container" />
         </div>
       </div>
 
       <div className="step-footer">
-        <button className="btn-primary" type="button" onClick={onVerify} disabled={verifyLoading || !firebaseReady}>
+        <button className="btn-primary" type="button" onClick={onVerify} disabled={verifyLoading || !otpProviderReady}>
           {verifyLoading ? <span className="spinner" /> : 'Verify OTP'}
         </button>
       </div>

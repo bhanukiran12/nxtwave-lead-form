@@ -1,5 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
-import { FIREBASE_CONFIG, OTP_SECONDS } from '../constants/formConstants';
+import {
+  MSG91_CAPTCHA_RENDER_ID,
+  MSG91_SCRIPT_SRC,
+  MSG91_TOKEN_AUTH,
+  MSG91_WIDGET_ID,
+  OTP_SECONDS
+} from '../constants/formConstants';
+
+const toMsg91Identifier = (mobile) => {
+  const clean = String(mobile || '').replace(/\D/g, '');
+  return clean ? `91${clean}` : '';
+};
+
+const extractReqId = (data) => (
+  data?.reqId || data?.req_id || data?.requestId || data?.request_id || data?.data?.reqId || ''
+);
 
 export default function useOtp({ mobile, onOtpAction, onVerified }) {
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
@@ -7,15 +22,13 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   const [otpStatus, setOtpStatus] = useState({ message: '', type: 'info' });
   const [resendSeconds, setResendSeconds] = useState(OTP_SECONDS);
   const [verifyLoading, setVerifyLoading] = useState(false);
-  const [firebaseReady, setFirebaseReady] = useState(false);
+  const [otpProviderReady, setOtpProviderReady] = useState(false);
 
   const otpRefs = useRef([]);
   const otpTimerRef = useRef(null);
-  const confirmationResultRef = useRef(null);
-  const recaptchaVerifierRef = useRef(null);
-  const recaptchaWidgetIdRef = useRef(null);
   const otpVerifyInFlightRef = useRef(false);
   const otpVerifiedRef = useRef(false);
+  const reqIdRef = useRef('');
 
   const clearOtpStatus = () => setOtpStatus({ message: '', type: 'info' });
   const setOtpStatusMessage = (message, type = 'info') => setOtpStatus({ message, type });
@@ -49,45 +62,66 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     setTimeout(() => otpRefs.current[0]?.focus(), 30);
   };
 
-  const getOrInitRecaptcha = async () => {
-    if (!window.firebasePhoneAuth) return null;
-    const { auth, RecaptchaVerifier } = window.firebasePhoneAuth;
-
-    if (!recaptchaVerifierRef.current) {
-      recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', { size: 'invisible' });
-      recaptchaWidgetIdRef.current = await recaptchaVerifierRef.current.render();
-    } else if (typeof window.grecaptcha !== 'undefined' && recaptchaWidgetIdRef.current !== null) {
-      window.grecaptcha.reset(recaptchaWidgetIdRef.current);
-    }
-
-    return recaptchaVerifierRef.current;
-  };
-
   const sendOtpToMobile = async (isResend = false) => {
-    if (!window.firebasePhoneAuth) {
-      setOtpStatusMessage('Unable to send OTP right now. Please refresh and try again.', 'error');
+    const identifier = toMsg91Identifier(mobile);
+    console.log('[OTP] Sending to identifier:', identifier, 'isResend:', isResend);
+    if (!identifier) {
+      console.log('[OTP] No identifier provided');
+      setOtpStatusMessage('Please enter a valid mobile number.', 'error');
       return false;
     }
-
-    const { signInWithPhoneNumber } = window.firebasePhoneAuth;
+    
+    // Check if sendOtp function exists
+    if (typeof window.sendOtp !== 'function') {
+      console.log('[OTP] sendOtp function not found');
+      setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
+      return false;
+    }
 
     setVerifyLoading(true);
     setOtpStatusMessage(isResend ? 'Resending OTP...' : 'Sending OTP...', 'info');
     onOtpAction?.('send', { isResend });
 
     try {
-      const appVerifier = await getOrInitRecaptcha();
-      confirmationResultRef.current = await signInWithPhoneNumber(window.firebasePhoneAuth.auth, `+91${mobile}`, appVerifier);
+      console.log('[OTP] Calling window.sendOtp...');
+      const result = await new Promise((resolve) => {
+        // Wrap in try-catch to catch any internal errors in MSG91 library
+        try {
+          window.sendOtp(
+            identifier,
+            (data) => {
+              console.log('[OTP] sendOtp success:', data);
+              resolve({ ok: true, data });
+            },
+            (error) => {
+              console.log('[OTP] sendOtp error:', error);
+              resolve({ ok: false, error });
+            }
+          );
+        } catch (err) {
+          console.error('[OTP] Exception in sendOtp:', err);
+          resolve({ ok: false, error: err });
+        }
+      });
+
+      if (!result.ok) {
+        setOtpStatusMessage('Failed to send OTP. Please try again.', 'error');
+        onOtpAction?.('send_failed', { error: result.error?.message || 'send_otp_failed' });
+        setVerifyLoading(false);
+        return false;
+      }
+
+      reqIdRef.current = extractReqId(result.data);
       otpVerifiedRef.current = false;
       setOtpStatusMessage('OTP sent. Enter the 6-digit code.', 'success');
       onOtpAction?.('sent_success');
+      setVerifyLoading(false);
       return true;
     } catch (err) {
-      setOtpStatusMessage('Failed to send OTP. Please try again.', 'error');
-      onOtpAction?.('send_failed', { error: err?.message });
-      return false;
-    } finally {
+      console.error('[OTP] Error sending OTP:', err);
+      setOtpStatusMessage('Error sending OTP. Please try again.', 'error');
       setVerifyLoading(false);
+      return false;
     }
   };
 
@@ -101,8 +135,8 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       return false;
     }
 
-    if (!confirmationResultRef.current) {
-      setOtpStatusMessage('OTP is not ready yet. Please wait or resend.', 'error');
+    if (typeof window.verifyOtp !== 'function') {
+      setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
       return false;
     }
 
@@ -111,22 +145,30 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     otpVerifyInFlightRef.current = true;
     setVerifyLoading(true);
 
-    try {
-      await confirmationResultRef.current.confirm(otp);
-      otpVerifiedRef.current = true;
-      setOtpStatusMessage('Mobile number verified successfully.', 'success');
-      onOtpAction?.('verified_success');
-      stopOtpTimer();
-      await onVerified?.();
-      return true;
-    } catch (err) {
+    const result = await new Promise((resolve) => {
+      window.verifyOtp(
+        otp,
+        (data) => resolve({ ok: true, data }),
+        (error) => resolve({ ok: false, error }),
+        reqIdRef.current || undefined
+      );
+    });
+
+    otpVerifyInFlightRef.current = false;
+    setVerifyLoading(false);
+
+    if (!result.ok) {
       setOtpError(true);
-      onOtpAction?.('attempt', { success: false, error: err?.message });
+      onOtpAction?.('attempt', { success: false, error: result.error?.message || 'verify_otp_failed' });
       return false;
-    } finally {
-      otpVerifyInFlightRef.current = false;
-      setVerifyLoading(false);
     }
+
+    otpVerifiedRef.current = true;
+    setOtpStatusMessage('Mobile number verified successfully.', 'success');
+    onOtpAction?.('verified_success');
+    stopOtpTimer();
+    await onVerified?.();
+    return true;
   };
 
   const initializeOtpFlow = async () => {
@@ -134,18 +176,79 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     setOtpError(false);
     clearOtpStatus();
     startOtpTimer();
+    
+    // Wait for OTP provider to be ready before sending OTP
+    let attempts = 0;
+    const waitForProvider = () => {
+      return new Promise((resolve) => {
+        const check = () => {
+          attempts++;
+          if (typeof window.sendOtp === 'function' || attempts >= 20) {
+            resolve(typeof window.sendOtp === 'function');
+          } else {
+            setTimeout(check, 250);
+          }
+        };
+        check();
+      });
+    };
+    
+    const isReady = await waitForProvider();
+    if (!isReady) {
+      setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
+      setVerifyLoading(false);
+      return;
+    }
+    
     await sendOtpToMobile(false);
     focusFirstOtp();
   };
 
   const resendOtp = async () => {
     if (resendSeconds > 0) return;
+    if (typeof window.retryOtp !== 'function') {
+      setOtpStatusMessage('Unable to resend OTP right now. Please refresh and try again.', 'error');
+      return;
+    }
+
     setOtpDigits(['', '', '', '', '', '']);
     setOtpError(false);
     clearOtpStatus();
     startOtpTimer();
-    await sendOtpToMobile(true);
-    focusFirstOtp();
+    setVerifyLoading(true);
+    setOtpStatusMessage('Resending OTP...', 'info');
+    onOtpAction?.('send', { isResend: true });
+
+    try {
+      const result = await new Promise((resolve) => {
+        // For SMS channel, use '11' as per MSG91 documentation
+        // When using exposeMethods, channel is mandatory
+        const channel = '11'; // SMS channel
+        window.retryOtp(
+          channel,
+          (data) => resolve({ ok: true, data }),
+          (error) => resolve({ ok: false, error }),
+          reqIdRef.current || undefined
+        );
+      });
+
+      setVerifyLoading(false);
+
+      if (!result.ok) {
+        setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
+        onOtpAction?.('send_failed', { error: result.error?.message || 'retry_otp_failed' });
+        return;
+      }
+
+      reqIdRef.current = extractReqId(result.data) || reqIdRef.current;
+      setOtpStatusMessage('OTP resent. Enter the 6-digit code.', 'success');
+      onOtpAction?.('sent_success');
+      focusFirstOtp();
+    } catch (err) {
+      console.error('[OTP] Error resending OTP:', err);
+      setVerifyLoading(false);
+      setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
+    }
   };
 
   const handleOtpInput = (idx, value) => {
@@ -185,24 +288,52 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   useEffect(() => {
     let mounted = true;
 
-    (async () => {
-      try {
-        const [{ initializeApp }, { getAnalytics }, { getAuth, RecaptchaVerifier, signInWithPhoneNumber }] = await Promise.all([
-          import('https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js'),
-          import('https://www.gstatic.com/firebasejs/12.9.0/firebase-analytics.js'),
-          import('https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js')
-        ]);
-
-        const app = initializeApp(FIREBASE_CONFIG);
-        getAnalytics(app);
-        const auth = getAuth(app);
-
-        window.firebasePhoneAuth = { auth, RecaptchaVerifier, signInWithPhoneNumber };
-        if (mounted) setFirebaseReady(true);
-      } catch {
-        if (mounted) setFirebaseReady(false);
+    const initializeMsg91 = () => {
+      console.log('[OTP] Initializing MSG91...');
+      if (typeof window.initSendOTP !== 'function') {
+        console.log('[OTP] initSendOTP not found');
+        if (mounted) setOtpProviderReady(false);
+        return;
       }
-    })();
+
+      const configuration = {
+        widgetId: MSG91_WIDGET_ID,
+        tokenAuth: MSG91_TOKEN_AUTH,
+        identifier: '',
+        exposeMethods: true,
+        captchaRenderId: MSG91_CAPTCHA_RENDER_ID,
+        success: (data) => console.log('[OTP] MSG91 success:', data),
+        failure: (error) => console.log('[OTP] MSG91 failure:', error)
+      };
+
+      try {
+        window.initSendOTP(configuration);
+        console.log('[OTP] MSG91 initialized successfully');
+        if (mounted) setOtpProviderReady(true);
+      } catch (err) {
+        console.log('[OTP] MSG91 initialization error:', err);
+        if (mounted) setOtpProviderReady(false);
+      }
+    };
+
+    const existingScript = document.querySelector(`script[src="${MSG91_SCRIPT_SRC}"]`);
+    if (existingScript) {
+      if (typeof window.initSendOTP === 'function') {
+        initializeMsg91();
+      } else {
+        existingScript.addEventListener('load', initializeMsg91, { once: true });
+      }
+    } else {
+      const script = document.createElement('script');
+      script.type = 'text/javascript';
+      script.src = MSG91_SCRIPT_SRC;
+      script.async = true;
+      script.onload = initializeMsg91;
+      script.onerror = () => {
+        if (mounted) setOtpProviderReady(false);
+      };
+      document.body.appendChild(script);
+    }
 
     return () => {
       mounted = false;
@@ -216,7 +347,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     otpStatus,
     resendSeconds,
     verifyLoading,
-    firebaseReady,
+    otpProviderReady,
     setOtpRef,
     handleOtpInput,
     handleOtpKeyDown,
