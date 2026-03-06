@@ -75,6 +75,7 @@ function App() {
     try {
       console.log('[Flow] Calling backend /api/post-otp-events');
       console.log('[Flow] Sending phoneNumber:', store.mobile);
+      console.log('[Flow] Sending UTM params:', JSON.stringify(submissionPayload.form_data));
       const response = await fetch(POST_OTP_EVENTS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -3,7 +3,7 @@ const DRAFT_USER_API_KEY = process.env.DRAFT_USER_API_KEY || 'aX6TI0JV.GD0Bz43nt
 const DRAFT_USER_CSRF_COOKIE = process.env.DRAFT_USER_CSRF_COOKIE || 'csrftoken=xNTQubRZDn4VCec5riyDHDxtEMdN4Fuh';
 
 const SEGMENT_TRACK_URL = process.env.SEGMENT_TRACK_URL || 'https://api.segment.io/v1/track';
-const SEGMENT_WRITE_KEY = process.env.SEGMENT_WRITE_KEY || 'pSF1EDPoC6XzbKeiyn2N3StqrlGdPHFT';
+const SEGMENT_WRITE_KEY = process.env.SEGMENT_WRITE_KEY || 'Ghu35SHftVD7AJsVsPxgwhYtCBXlHuJc';
 
 // CORS headers - explicitly set for all responses
 const CORS_HEADERS = {
@@ -165,9 +165,17 @@ export default async function handler(req, res) {
   try {
     const phoneNumber = String(req.body?.phoneNumber || '').trim();
     const submissionPayload = req.body?.submissionPayload || {};
+    const formData = submissionPayload?.form_data || {};
 
     console.log('[Handler] Received phoneNumber:', phoneNumber);
     console.log('[Handler] Received submissionPayload:', JSON.stringify(submissionPayload));
+    console.log('[Handler] UTM parameters:', {
+      utm_source: formData.utm_source,
+      utm_medium: formData.utm_medium,
+      utm_campaign: formData.utm_campaign,
+      utm_content: formData.utm_content,
+      utm_term: formData.utm_term
+    });
 
     if (!phoneNumber) {
       return res.status(400).json({ ok: false, error: 'phoneNumber is required' });

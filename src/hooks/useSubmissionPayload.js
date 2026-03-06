@@ -49,6 +49,14 @@ function extractUtmFromSearchParams(params) {
   return utm;
 }
 
+function extractUtmLikeParams(payload) {
+  const incoming = {};
+  Object.keys(payload || {}).forEach((key) => {
+    if (key.toLowerCase().startsWith('utm_')) incoming[key] = String(payload[key] || '');
+  });
+  return incoming;
+}
+
 function extractUtmFromUrl(url) {
   try {
     const parsed = new URL(url);
@@ -78,11 +86,8 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
         setParentUtmFromMessage((prev) => ({ ...prev, ...extractUtmFromUrl(data.url) }));
       }
 
-      if (data.type === 'PARENT_UTM' && data.payload && typeof data.payload === 'object') {
-        const incoming = {};
-        Object.keys(data.payload).forEach((key) => {
-          if (key.toLowerCase().startsWith('utm_')) incoming[key] = String(data.payload[key] || '');
-        });
+      if ((data.type === 'PARENT_UTM' || data.type === 'UTM_PARAMS') && data.payload && typeof data.payload === 'object') {
+        const incoming = extractUtmLikeParams(data.payload);
         setParentUtmFromMessage((prev) => ({ ...prev, ...incoming }));
       }
     };
