@@ -44,7 +44,7 @@ function parseDemoSlot(demoValue) {
 function extractUtmFromSearchParams(params) {
   const utm = {};
   for (const [key, value] of params.entries()) {
-    if (key.toLowerCase().startsWith('utm_')) utm[key] = value;
+    if (key.toLowerCase().startsWith('utm_')) utm[key.toLowerCase()] = value;
   }
   return utm;
 }
@@ -52,7 +52,7 @@ function extractUtmFromSearchParams(params) {
 function extractUtmLikeParams(payload) {
   const incoming = {};
   Object.keys(payload || {}).forEach((key) => {
-    if (key.toLowerCase().startsWith('utm_')) incoming[key] = String(payload[key] || '');
+    if (key.toLowerCase().startsWith('utm_')) incoming[key.toLowerCase()] = String(payload[key] || '');
   });
   return incoming;
 }
@@ -77,17 +77,36 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
   const [parentUrlFromMessage, setParentUrlFromMessage] = useState('');
 
   useEffect(() => {
+    const resolvedReferrerOrigin = (() => {
+      try {
+        if (!document.referrer) return '';
+        return new URL(document.referrer).origin;
+      } catch {
+        return '';
+      }
+    })();
+
+    const allowedOrigins = new Set([parentOrigin, resolvedReferrerOrigin].filter(Boolean));
+    const requestTargetOrigin = resolvedReferrerOrigin || parentOrigin || '*';
+
     const onMessage = (event) => {
-      if (event.origin !== parentOrigin) return;
+      if (event.source !== window.parent) return;
+      if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin)) {
+        console.warn('[Payload] Ignored parent message from unexpected origin:', event.origin);
+        return;
+      }
+
       const data = event.data || {};
 
       if (data.type === 'PARENT_URL_CONTEXT' && typeof data.url === 'string') {
+        console.log('[Payload] Received PARENT_URL_CONTEXT from parent:', data.url);
         setParentUrlFromMessage(data.url);
         setParentUtmFromMessage((prev) => ({ ...prev, ...extractUtmFromUrl(data.url) }));
       }
 
       if ((data.type === 'PARENT_UTM' || data.type === 'UTM_PARAMS') && data.payload && typeof data.payload === 'object') {
         const incoming = extractUtmLikeParams(data.payload);
+        console.log('[Payload] Received UTM payload from parent:', incoming);
         setParentUtmFromMessage((prev) => ({ ...prev, ...incoming }));
       }
     };
@@ -95,7 +114,19 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
     window.addEventListener('message', onMessage);
 
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, parentOrigin);
+      window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
+      window.parent.postMessage({ type: 'REQUEST_PARENT_UTM' }, requestTargetOrigin);
+
+      // Retry once to avoid missing parent data because of load-order timing.
+      const timer = setTimeout(() => {
+        window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
+        window.parent.postMessage({ type: 'REQUEST_PARENT_UTM' }, requestTargetOrigin);
+      }, 800);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('message', onMessage);
+      };
     }
 
     return () => window.removeEventListener('message', onMessage);
