@@ -44,6 +44,9 @@ function App() {
   });
 
   const onOtpVerified = async () => {
+    console.log('[App] OTP Verified - Starting form submission');
+    console.log('[App] Store data at submission:', store);
+    
     triggerConfetti();
     trackFormSubmission('completed', {
       mode: store.mode,
@@ -54,6 +57,8 @@ function App() {
 
     const submissionPayload = buildSubmissionPayload(store);
     console.log('[Sheets] Submission payload:', submissionPayload);
+    console.log('[Sheets] fullName in payload:', submissionPayload.form_data.fullName);
+    
     fetch(SHEETS_URL, {
       method: 'POST',
       mode: 'no-cors',
@@ -69,6 +74,7 @@ function App() {
 
     try {
       console.log('[Flow] Calling backend /api/post-otp-events');
+      console.log('[Flow] Sending phoneNumber:', store.mobile);
       const response = await fetch(POST_OTP_EVENTS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

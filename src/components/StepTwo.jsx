@@ -10,6 +10,7 @@ const STATES = [
 ];
 
 function StepTwo({ store, setStore, yearsList, isClassroom, step2Valid, onContinue, onBack }) {
+  console.log('[StepTwo] Rendering - store:', store, 'yearsList:', yearsList, 'isClassroom:', isClassroom);
   return (
     <div className="step active">
       <div className="step-content">

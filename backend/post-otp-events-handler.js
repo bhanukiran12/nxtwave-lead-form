@@ -163,12 +163,16 @@ export default async function handler(req, res) {
     const phoneNumber = String(req.body?.phoneNumber || '').trim();
     const submissionPayload = req.body?.submissionPayload || {};
 
+    console.log('[Handler] Received phoneNumber:', phoneNumber);
+    console.log('[Handler] Received submissionPayload:', JSON.stringify(submissionPayload));
+
     if (!phoneNumber) {
       return res.status(400).json({ ok: false, error: 'phoneNumber is required' });
     }
 
     console.log('[Flow] Starting DraftUser -> Segment flow');
     const uuid = await callDraftUserApi(phoneNumber);
+    console.log('[Handler] UUID received from DraftUser:', uuid);
     await callSegmentTrack(submissionPayload, uuid);
     console.log('[Flow] DraftUser -> Segment flow completed successfully');
 

@@ -14,6 +14,7 @@ function StepOne({
   sanitiseName,
   sanitiseMobile
 }) {
+  console.log('[StepOne] Rendering - nameValue:', nameValue, 'mobileValue:', mobileValue, 'mode:', mode);
   return (
     <div className="step active">
       <div className="step-content">
