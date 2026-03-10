@@ -19,6 +19,29 @@ const extractReqId = (data) => (
 let msg91ScriptPromise = null;
 let msg91Initialized = false;
 
+function waitFor(check, attempts = 20, delayMs = 250) {
+  return new Promise((resolve) => {
+    let count = 0;
+
+    const poll = () => {
+      if (check()) {
+        resolve(true);
+        return;
+      }
+
+      count += 1;
+      if (count >= attempts) {
+        resolve(false);
+        return;
+      }
+
+      window.setTimeout(poll, delayMs);
+    };
+
+    poll();
+  });
+}
+
 function loadMsg91Script() {
   if (typeof window === 'undefined') return Promise.resolve(false);
   if (typeof window.initSendOTP === 'function') return Promise.resolve(true);
@@ -27,7 +50,7 @@ function loadMsg91Script() {
   msg91ScriptPromise = new Promise((resolve) => {
     const existingScript = document.querySelector(`script[src="${MSG91_SCRIPT_SRC}"]`);
     if (existingScript) {
-      existingScript.addEventListener('load', () => resolve(typeof window.initSendOTP === 'function'), { once: true });
+      existingScript.addEventListener('load', () => resolve(true), { once: true });
       existingScript.addEventListener('error', () => resolve(false), { once: true });
       return;
     }
@@ -36,7 +59,7 @@ function loadMsg91Script() {
     script.type = 'text/javascript';
     script.src = MSG91_SCRIPT_SRC;
     script.async = true;
-    script.onload = () => resolve(typeof window.initSendOTP === 'function');
+    script.onload = () => resolve(true);
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
@@ -92,7 +115,13 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
   const ensureOtpProviderReady = async () => {
     const scriptReady = await loadMsg91Script();
-    if (!scriptReady || typeof window.initSendOTP !== 'function') {
+    if (!scriptReady) {
+      setOtpProviderReady(false);
+      return false;
+    }
+
+    const initReady = await waitFor(() => typeof window.initSendOTP === 'function');
+    if (!initReady || typeof window.initSendOTP !== 'function') {
       setOtpProviderReady(false);
       return false;
     }
@@ -120,6 +149,15 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
     try {
       window.initSendOTP(configuration);
+      const methodsReady = await waitFor(
+        () => typeof window.sendOtp === 'function' && typeof window.verifyOtp === 'function'
+      );
+
+      if (!methodsReady) {
+        setOtpProviderReady(false);
+        return false;
+      }
+
       msg91Initialized = true;
       setOtpProviderReady(true);
       return true;
