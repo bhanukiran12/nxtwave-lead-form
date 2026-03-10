@@ -91,22 +91,16 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
 
     const onMessage = (event) => {
       if (event.source !== window.parent) return;
-      if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin)) {
-        console.warn('[Payload] Ignored parent message from unexpected origin:', event.origin);
-        return;
-      }
 
       const data = event.data || {};
 
       if (data.type === 'PARENT_URL_CONTEXT' && typeof data.url === 'string') {
-        console.log('[Payload] Received PARENT_URL_CONTEXT from parent:', data.url);
         setParentUrlFromMessage(data.url);
         setParentUtmFromMessage((prev) => ({ ...prev, ...extractUtmFromUrl(data.url) }));
       }
 
       if ((data.type === 'PARENT_UTM' || data.type === 'UTM_PARAMS') && data.payload && typeof data.payload === 'object') {
         const incoming = extractUtmLikeParams(data.payload);
-        console.log('[Payload] Received UTM payload from parent:', incoming);
         setParentUtmFromMessage((prev) => ({ ...prev, ...incoming }));
       }
     };
@@ -162,10 +156,6 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
     const utmParams = extractUtmParams();
     const now = new Date();
     const frontendUrl = resolveFrontendUrl();
-    console.log('[Payload] Extracted UTM params:', utmParams);
-
-    // Prove name is in the form data
-    console.log('[Payload] fullName being submitted:', store.name);
 
     return {
       form_data: {

@@ -44,9 +44,6 @@ function App() {
   });
 
   const onOtpVerified = async () => {
-    console.log('[App] OTP Verified - Starting form submission');
-    console.log('[App] Store data at submission:', store);
-    
     triggerConfetti();
     trackFormSubmission('completed', {
       mode: store.mode,
@@ -56,26 +53,16 @@ function App() {
     setStep('success');
 
     const submissionPayload = buildSubmissionPayload(store);
-    console.log('[Sheets] Submission payload:', submissionPayload);
-    console.log('[Sheets] fullName in payload:', submissionPayload.form_data.fullName);
-    
+
     fetch(SHEETS_URL, {
       method: 'POST',
       mode: 'no-cors',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(submissionPayload)
     })
-      .then(() => {
-        console.log('[Sheets] Request sent (no-cors mode, response not readable).');
-      })
-      .catch((err) => {
-        console.error('[Sheets] Request failed:', err);
-      });
+      .catch(() => {});
 
     try {
-      console.log('[Flow] Calling backend /api/post-otp-events');
-      console.log('[Flow] Sending phoneNumber:', store.mobile);
-      console.log('[Flow] Sending UTM params:', JSON.stringify(submissionPayload.form_data));
       const response = await fetch(POST_OTP_EVENTS_API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -88,9 +75,7 @@ function App() {
       if (!response.ok || !json?.ok) {
         throw new Error(json?.error || `Backend API failed with status ${response.status}`);
       }
-      console.log('[Flow] Backend flow success:', json);
-    } catch (err) {
-      console.error('[Flow] Backend flow failed:', err);
+    } catch {
     }
   };
 
@@ -196,11 +181,6 @@ function App() {
     trackFieldInteraction('name', safeName);
     trackFieldInteraction('mobile', mobile);
 
-    // Prove name is in the form data
-    console.log('[FormData] Name captured:', safeName);
-    console.log('[FormData] Mobile captured:', mobile);
-    console.log('[FormData] Mode selected:', store.mode);
-
     triggerConfetti();
     setStep(2);
     trackStepView(2);
@@ -208,9 +188,6 @@ function App() {
 
   const handleGoToStep3 = () => {
     if (!step2Valid) return;
-
-    console.log('[Step2] Proceeding to Step3 - gradYear:', store.gradYear, 'state:', store.state, 'demo:', store.demo);
-    
     trackFieldInteraction('gradYear', store.gradYear);
     trackFieldInteraction('state', store.state);
     trackFieldInteraction('demo', store.demo);

@@ -44,8 +44,6 @@ export default function useDataLayer({ parentOrigin }) {
   const pushDataLayerEvent = (eventName, eventData = {}) => {
     if (!formDataLayerRef.current) return;
 
-    console.log('[DataLayer] Event pushed:', eventName, eventData);
-
     const fdl = formDataLayerRef.current;
     const uniqueEventId = uniqueEventIdRef.current++;
 

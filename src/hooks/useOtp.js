@@ -16,9 +16,35 @@ const extractReqId = (data) => (
   data?.reqId || data?.req_id || data?.requestId || data?.request_id || data?.data?.reqId || ''
 );
 
+let msg91ScriptPromise = null;
+let msg91Initialized = false;
+
+function loadMsg91Script() {
+  if (typeof window === 'undefined') return Promise.resolve(false);
+  if (typeof window.initSendOTP === 'function') return Promise.resolve(true);
+  if (msg91ScriptPromise) return msg91ScriptPromise;
+
+  msg91ScriptPromise = new Promise((resolve) => {
+    const existingScript = document.querySelector(`script[src="${MSG91_SCRIPT_SRC}"]`);
+    if (existingScript) {
+      existingScript.addEventListener('load', () => resolve(typeof window.initSendOTP === 'function'), { once: true });
+      existingScript.addEventListener('error', () => resolve(false), { once: true });
+      return;
+    }
+
+    const script = document.createElement('script');
+    script.type = 'text/javascript';
+    script.src = MSG91_SCRIPT_SRC;
+    script.async = true;
+    script.onload = () => resolve(typeof window.initSendOTP === 'function');
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+
+  return msg91ScriptPromise;
+}
+
 export default function useOtp({ mobile, onOtpAction, onVerified }) {
-  console.log('[useOtp] Hook initialized with mobile:', mobile);
-  
   const [otpDigits, setOtpDigits] = useState(['', '', '', '', '', '']);
   const [otpError, setOtpError] = useState(false);
   const [otpStatus, setOtpStatus] = useState({ message: '', type: 'info' });
@@ -64,18 +90,53 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     setTimeout(() => otpRefs.current[0]?.focus(), 30);
   };
 
+  const ensureOtpProviderReady = async () => {
+    const scriptReady = await loadMsg91Script();
+    if (!scriptReady || typeof window.initSendOTP !== 'function') {
+      setOtpProviderReady(false);
+      return false;
+    }
+
+    if (msg91Initialized && typeof window.sendOtp === 'function') {
+      setOtpProviderReady(true);
+      return true;
+    }
+
+    const captchaContainer = document.getElementById(MSG91_CAPTCHA_RENDER_ID);
+    if (!captchaContainer) {
+      setOtpProviderReady(false);
+      return false;
+    }
+
+    const configuration = {
+      widgetId: MSG91_WIDGET_ID,
+      tokenAuth: MSG91_TOKEN_AUTH,
+      identifier: toMsg91Identifier(mobile),
+      exposeMethods: true,
+      captchaRenderId: MSG91_CAPTCHA_RENDER_ID,
+      success: () => {},
+      failure: () => {}
+    };
+
+    try {
+      window.initSendOTP(configuration);
+      msg91Initialized = true;
+      setOtpProviderReady(true);
+      return true;
+    } catch {
+      setOtpProviderReady(false);
+      return false;
+    }
+  };
+
   const sendOtpToMobile = async (isResend = false) => {
     const identifier = toMsg91Identifier(mobile);
-    console.log('[OTP] Sending to identifier:', identifier, 'isResend:', isResend);
     if (!identifier) {
-      console.log('[OTP] No identifier provided');
       setOtpStatusMessage('Please enter a valid mobile number.', 'error');
       return false;
     }
-    
-    // Check if sendOtp function exists
+
     if (typeof window.sendOtp !== 'function') {
-      console.log('[OTP] sendOtp function not found');
       setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
       return false;
     }
@@ -85,23 +146,14 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     onOtpAction?.('send', { isResend });
 
     try {
-      console.log('[OTP] Calling window.sendOtp...');
       const result = await new Promise((resolve) => {
-        // Wrap in try-catch to catch any internal errors in MSG91 library
         try {
           window.sendOtp(
             identifier,
-            (data) => {
-              console.log('[OTP] sendOtp success:', data);
-              resolve({ ok: true, data });
-            },
-            (error) => {
-              console.log('[OTP] sendOtp error:', error);
-              resolve({ ok: false, error });
-            }
+            (data) => resolve({ ok: true, data }),
+            (error) => resolve({ ok: false, error })
           );
         } catch (err) {
-          console.error('[OTP] Exception in sendOtp:', err);
           resolve({ ok: false, error: err });
         }
       });
@@ -120,7 +172,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       setVerifyLoading(false);
       return true;
     } catch (err) {
-      console.error('[OTP] Error sending OTP:', err);
       setOtpStatusMessage('Error sending OTP. Please try again.', 'error');
       setVerifyLoading(false);
       return false;
@@ -178,24 +229,8 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     setOtpError(false);
     clearOtpStatus();
     startOtpTimer();
-    
-    // Wait for OTP provider to be ready before sending OTP
-    let attempts = 0;
-    const waitForProvider = () => {
-      return new Promise((resolve) => {
-        const check = () => {
-          attempts++;
-          if (typeof window.sendOtp === 'function' || attempts >= 20) {
-            resolve(typeof window.sendOtp === 'function');
-          } else {
-            setTimeout(check, 250);
-          }
-        };
-        check();
-      });
-    };
-    
-    const isReady = await waitForProvider();
+
+    const isReady = await ensureOtpProviderReady();
     if (!isReady) {
       setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
       setVerifyLoading(false);
@@ -246,8 +281,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       setOtpStatusMessage('OTP resent. Enter the 6-digit code.', 'success');
       onOtpAction?.('sent_success');
       focusFirstOtp();
-    } catch (err) {
-      console.error('[OTP] Error resending OTP:', err);
+    } catch {
       setVerifyLoading(false);
       setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
     }
@@ -287,60 +321,8 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     if (p.length >= 6) setTimeout(() => verifyOtp(next.join('')), 0);
   };
 
-  useEffect(() => {
-    let mounted = true;
-
-    const initializeMsg91 = () => {
-      console.log('[OTP] Initializing MSG91...');
-      if (typeof window.initSendOTP !== 'function') {
-        console.log('[OTP] initSendOTP not found');
-        if (mounted) setOtpProviderReady(false);
-        return;
-      }
-
-      const configuration = {
-        widgetId: MSG91_WIDGET_ID,
-        tokenAuth: MSG91_TOKEN_AUTH,
-        identifier: '',
-        exposeMethods: true,
-        captchaRenderId: MSG91_CAPTCHA_RENDER_ID,
-        success: (data) => console.log('[OTP] MSG91 success:', data),
-        failure: (error) => console.log('[OTP] MSG91 failure:', error)
-      };
-
-      try {
-        window.initSendOTP(configuration);
-        console.log('[OTP] MSG91 initialized successfully');
-        if (mounted) setOtpProviderReady(true);
-      } catch (err) {
-        console.log('[OTP] MSG91 initialization error:', err);
-        if (mounted) setOtpProviderReady(false);
-      }
-    };
-
-    const existingScript = document.querySelector(`script[src="${MSG91_SCRIPT_SRC}"]`);
-    if (existingScript) {
-      if (typeof window.initSendOTP === 'function') {
-        initializeMsg91();
-      } else {
-        existingScript.addEventListener('load', initializeMsg91, { once: true });
-      }
-    } else {
-      const script = document.createElement('script');
-      script.type = 'text/javascript';
-      script.src = MSG91_SCRIPT_SRC;
-      script.async = true;
-      script.onload = initializeMsg91;
-      script.onerror = () => {
-        if (mounted) setOtpProviderReady(false);
-      };
-      document.body.appendChild(script);
-    }
-
-    return () => {
-      mounted = false;
-      stopOtpTimer();
-    };
+  useEffect(() => () => {
+    stopOtpTimer();
   }, []);
 
   return {
