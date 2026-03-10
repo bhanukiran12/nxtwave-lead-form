@@ -19,6 +19,14 @@ const extractReqId = (data) => (
 let msg91ScriptPromise = null;
 let msg91Initialized = false;
 
+const OTP_PROVIDER_ERRORS = {
+  script_load_failed: 'OTP provider script failed to load.',
+  init_api_missing: 'OTP provider did not expose initSendOTP.',
+  captcha_container_missing: 'OTP provider captcha container is unavailable.',
+  methods_missing: 'OTP provider did not expose OTP methods after initialization.',
+  init_failed: 'OTP provider initialization failed.'
+};
+
 function waitFor(check, attempts = 20, delayMs = 250) {
   return new Promise((resolve) => {
     let count = 0;
@@ -83,6 +91,10 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
   const clearOtpStatus = () => setOtpStatus({ message: '', type: 'info' });
   const setOtpStatusMessage = (message, type = 'info') => setOtpStatus({ message, type });
+  const setProviderError = (code) => {
+    setOtpStatusMessage(OTP_PROVIDER_ERRORS[code] || 'OTP provider is not ready. Please refresh and try again.', 'error');
+    onOtpAction?.('provider_failed', { code });
+  };
 
   const stopOtpTimer = () => {
     if (otpTimerRef.current) {
@@ -117,12 +129,14 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     const scriptReady = await loadMsg91Script();
     if (!scriptReady) {
       setOtpProviderReady(false);
+      setProviderError('script_load_failed');
       return false;
     }
 
     const initReady = await waitFor(() => typeof window.initSendOTP === 'function');
     if (!initReady || typeof window.initSendOTP !== 'function') {
       setOtpProviderReady(false);
+      setProviderError('init_api_missing');
       return false;
     }
 
@@ -134,6 +148,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     const captchaContainer = document.getElementById(MSG91_CAPTCHA_RENDER_ID);
     if (!captchaContainer) {
       setOtpProviderReady(false);
+      setProviderError('captcha_container_missing');
       return false;
     }
 
@@ -155,6 +170,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
       if (!methodsReady) {
         setOtpProviderReady(false);
+        setProviderError('methods_missing');
         return false;
       }
 
@@ -163,6 +179,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       return true;
     } catch {
       setOtpProviderReady(false);
+      setProviderError('init_failed');
       return false;
     }
   };
@@ -270,7 +287,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
     const isReady = await ensureOtpProviderReady();
     if (!isReady) {
-      setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
       setVerifyLoading(false);
       return;
     }
