@@ -27,6 +27,11 @@ const OTP_PROVIDER_ERRORS = {
   init_failed: 'OTP provider initialization failed.'
 };
 
+function logOtpEvent(level, message, details) {
+  const logger = console[level] || console.log;
+  logger(`[OTP] ${message}`, details ?? '');
+}
+
 function waitFor(check, attempts = 20, delayMs = 250) {
   return new Promise((resolve) => {
     let count = 0;
@@ -92,6 +97,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   const clearOtpStatus = () => setOtpStatus({ message: '', type: 'info' });
   const setOtpStatusMessage = (message, type = 'info') => setOtpStatus({ message, type });
   const setProviderError = (code) => {
+    logOtpEvent('error', 'Provider error', { code, message: OTP_PROVIDER_ERRORS[code] });
     setOtpStatusMessage(OTP_PROVIDER_ERRORS[code] || 'OTP provider is not ready. Please refresh and try again.', 'error');
     onOtpAction?.('provider_failed', { code });
   };
@@ -126,6 +132,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   };
 
   const ensureOtpProviderReady = async () => {
+    logOtpEvent('info', 'Initializing OTP provider', { mobile: toMsg91Identifier(mobile) });
     const scriptReady = await loadMsg91Script();
     if (!scriptReady) {
       setOtpProviderReady(false);
@@ -141,6 +148,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     }
 
     if (msg91Initialized && typeof window.sendOtp === 'function') {
+      logOtpEvent('info', 'OTP provider already initialized');
       setOtpProviderReady(true);
       return true;
     }
@@ -176,8 +184,10 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
       msg91Initialized = true;
       setOtpProviderReady(true);
+      logOtpEvent('info', 'OTP provider initialized successfully');
       return true;
-    } catch {
+    } catch (error) {
+      logOtpEvent('error', 'OTP provider initialization failed', error);
       setOtpProviderReady(false);
       setProviderError('init_failed');
       return false;
@@ -187,11 +197,13 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   const sendOtpToMobile = async (isResend = false) => {
     const identifier = toMsg91Identifier(mobile);
     if (!identifier) {
+      logOtpEvent('warn', 'Missing or invalid mobile number for OTP send', { mobile });
       setOtpStatusMessage('Please enter a valid mobile number.', 'error');
       return false;
     }
 
     if (typeof window.sendOtp !== 'function') {
+      logOtpEvent('error', 'sendOtp is unavailable on window');
       setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
       return false;
     }
@@ -214,6 +226,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       });
 
       if (!result.ok) {
+        logOtpEvent('error', 'Failed to send OTP', result.error);
         setOtpStatusMessage('Failed to send OTP. Please try again.', 'error');
         onOtpAction?.('send_failed', { error: result.error?.message || 'send_otp_failed' });
         setVerifyLoading(false);
@@ -221,12 +234,14 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       }
 
       reqIdRef.current = extractReqId(result.data);
+      logOtpEvent('info', 'OTP sent successfully', { reqId: reqIdRef.current, data: result.data });
       otpVerifiedRef.current = false;
       setOtpStatusMessage('OTP sent. Enter the 6-digit code.', 'success');
       onOtpAction?.('sent_success');
       setVerifyLoading(false);
       return true;
     } catch (err) {
+      logOtpEvent('error', 'Error sending OTP', err);
       setOtpStatusMessage('Error sending OTP. Please try again.', 'error');
       setVerifyLoading(false);
       return false;
@@ -238,12 +253,14 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
     const otp = otpOverride || otpDigits.join('');
     if (otp.length < 6) {
+      logOtpEvent('warn', 'OTP verification attempted with incomplete code', { otpLength: otp.length });
       setOtpError(true);
       clearOtpStatus();
       return false;
     }
 
     if (typeof window.verifyOtp !== 'function') {
+      logOtpEvent('error', 'verifyOtp is unavailable on window');
       setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
       return false;
     }
@@ -266,12 +283,14 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     setVerifyLoading(false);
 
     if (!result.ok) {
+      logOtpEvent('error', 'OTP verification failed', result.error);
       setOtpError(true);
       onOtpAction?.('attempt', { success: false, error: result.error?.message || 'verify_otp_failed' });
       return false;
     }
 
     otpVerifiedRef.current = true;
+    logOtpEvent('info', 'OTP verified successfully', { reqId: reqIdRef.current, data: result.data });
     setOtpStatusMessage('Mobile number verified successfully.', 'success');
     onOtpAction?.('verified_success');
     stopOtpTimer();
@@ -280,6 +299,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   };
 
   const initializeOtpFlow = async () => {
+    logOtpEvent('info', 'Starting OTP flow');
     setOtpDigits(['', '', '', '', '', '']);
     setOtpError(false);
     clearOtpStatus();
@@ -297,7 +317,9 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
   const resendOtp = async () => {
     if (resendSeconds > 0) return;
+
     if (typeof window.retryOtp !== 'function') {
+      logOtpEvent('error', 'retryOtp is unavailable on window');
       setOtpStatusMessage('Unable to resend OTP right now. Please refresh and try again.', 'error');
       return;
     }
@@ -326,16 +348,19 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       setVerifyLoading(false);
 
       if (!result.ok) {
+        logOtpEvent('error', 'Failed to resend OTP', result.error);
         setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
         onOtpAction?.('send_failed', { error: result.error?.message || 'retry_otp_failed' });
         return;
       }
 
       reqIdRef.current = extractReqId(result.data) || reqIdRef.current;
+      logOtpEvent('info', 'OTP resent successfully', { reqId: reqIdRef.current, data: result.data });
       setOtpStatusMessage('OTP resent. Enter the 6-digit code.', 'success');
       onOtpAction?.('sent_success');
       focusFirstOtp();
-    } catch {
+    } catch (error) {
+      logOtpEvent('error', 'Error while resending OTP', error);
       setVerifyLoading(false);
       setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
     }

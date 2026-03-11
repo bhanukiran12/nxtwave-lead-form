@@ -10,6 +10,7 @@ import {
   PARENT_PAGE_URL,
   PARENT_WINDOW_ORIGIN,
   POST_OTP_EVENTS_API_URL,
+  SHEETS_STAGE_NAME,
   SHEETS_URL
 } from './constants/formConstants';
 import useDataLayer from './hooks/useDataLayer';
@@ -32,6 +33,7 @@ function App() {
   const confettiRef = useRef({ canvas: null, ctx: null, particles: [], animId: null });
 
   const {
+    sessionId,
     trackStepView,
     trackFieldInteraction,
     trackOtpAction,
@@ -54,13 +56,19 @@ function App() {
 
     const submissionPayload = buildSubmissionPayload(store);
 
-    fetch(SHEETS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(submissionPayload)
-    })
-      .catch(() => {});
+    await postStageDataToSheet('final', {
+      name: store.name,
+      mobile: store.mobile,
+      mode: store.mode,
+      gradYear: store.gradYear,
+      state: store.state,
+      demo: store.demo,
+      otpVerified: true,
+      submitted: true,
+      formSubmissionId: submissionPayload.form_submission_id,
+      formSubmissionDatetime: submissionPayload.form_submission_datetime,
+      submissionPayload
+    });
 
     try {
       const response = await fetch(POST_OTP_EVENTS_API_URL, {
@@ -93,6 +101,23 @@ function App() {
 
   const nameHasError = nameValue.trim() && !isValidName(nameValue);
   const mobileHasError = mobileValue.trim() && !isValidMobile(mobileValue);
+
+  const postStageDataToSheet = (stage, data) => {
+    const activeSessionId = sessionId || sessionStorage.getItem('nxtwave_session_id') || '';
+    if (!activeSessionId) return Promise.resolve();
+
+    return fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        sheetName: SHEETS_STAGE_NAME,
+        sessionId: activeSessionId,
+        stage,
+        data
+      })
+    }).catch(() => {});
+  };
 
   const triggerConfetti = () => {
     const env = confettiRef.current;
@@ -180,6 +205,11 @@ function App() {
 
     trackFieldInteraction('name', safeName);
     trackFieldInteraction('mobile', mobile);
+    postStageDataToSheet('step1', {
+      name: safeName,
+      mobile,
+      mode: store.mode
+    });
 
     triggerConfetti();
     setStep(2);
@@ -191,6 +221,14 @@ function App() {
     trackFieldInteraction('gradYear', store.gradYear);
     trackFieldInteraction('state', store.state);
     trackFieldInteraction('demo', store.demo);
+    postStageDataToSheet('step2', {
+      name: store.name,
+      mobile: store.mobile,
+      mode: store.mode,
+      gradYear: store.gradYear,
+      state: store.state,
+      demo: store.demo
+    });
 
     triggerConfetti();
     setStep(3);
