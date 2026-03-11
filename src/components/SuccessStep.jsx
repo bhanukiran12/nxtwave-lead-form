@@ -6,16 +6,18 @@ function SuccessStep({ isClassroom, demo }) {
 
   return (
     <div className="step active">
-      <div className="success-inner">
-        <div className="success-icon">✓</div>
-        <div className="success-title">{successTitle}</div>
-        <div className="success-subtitle">{successSubtitle}</div>
-        {!isClassroom && demo && (
-          <div className="success-slot">
-            <p>Slot is booked for you at:</p>
-            <strong>{demo}</strong>
-          </div>
-        )}
+      <div className="step-content">
+        <div className="success-inner">
+          <div className="success-icon">✓</div>
+          <div className="success-title">{successTitle}</div>
+          <div className="success-subtitle">{successSubtitle}</div>
+          {!isClassroom && demo && (
+            <div className="success-slot">
+              <p>Slot is booked for you at:</p>
+              <strong>{demo}</strong>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
