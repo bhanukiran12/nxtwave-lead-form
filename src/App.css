@@ -4,12 +4,23 @@
   padding: 0;
 }
 
+:root {
+  --control-height: 46px;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 24px;
+}
+
+html,
+body,
+#root {
+  width: 100%;
 }
 
 #confetti-canvas {
@@ -26,20 +37,24 @@ body {
   background: #fff;
   border-radius: 20px;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 10px 40px -10px rgba(79, 70, 229, 0.12);
-  width: 100%;
-  max-width: 420px;
+  width: min(420px, 100%);
+  max-width: min(420px, 100%);
   min-height: 580px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   position: relative;
   justify-content: center;
+  overflow: hidden;
+  margin: 0 auto;
 }
 
 .step {
   display: none;
   flex-direction: column;
   height: 100%;
+  width: 100%;
+  min-width: 0;
 }
 
 .step.active {
@@ -51,19 +66,24 @@ body {
   flex-direction: column;
   gap: 24px;
   flex: 1;
+  width: 100%;
+  min-width: 0;
 }
 
 .fields-group {
   display: flex;
   flex-direction: column;
   gap: 20px;
+  width: 100%;
 }
 
 .step-footer {
   flex-shrink: 0;
+  margin-top: auto;
   padding-top: 32px;
   display: flex;
   flex-direction: column;
+  width: 100%;
 }
 
 .step-footer .terms {
@@ -148,7 +168,7 @@ body {
 .field input,
 .field select {
   width: 100%;
-  height: 44px;
+  height: var(--control-height);
   border: 1.5px solid #cbd5e1;
   border-radius: 10px;
   padding: 0 14px;
@@ -182,16 +202,18 @@ body {
 .mode-toggle {
   display: flex;
   background: #f1f5f9;
-  border-radius: 999px;
+  border-radius: 12px;
   padding: 4px;
   gap: 4px;
+  min-height: var(--control-height);
+  align-items: center;
 }
 
 .mode-btn {
   flex: 1;
-  height: 36px;
+  height: calc(var(--control-height) - 8px);
   border: none;
-  border-radius: 999px;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 500;
   cursor: pointer;
@@ -217,7 +239,7 @@ body {
 
 .btn-primary {
   width: 100%;
-  height: 46px;
+  height: var(--control-height);
   background: #4f46e5;
   color: #fff;
   border: none;
@@ -248,7 +270,7 @@ body {
 
 .otp-box {
   flex: 1;
-  height: 48px;
+  height: var(--control-height);
   border: 1.5px solid #cbd5e1;
   border-radius: 10px;
   text-align: center;
@@ -320,6 +342,8 @@ body {
   justify-content: center;
   text-align: center;
   gap: 12px;
+  width: 100%;
+  min-width: 0;
 }
 
 .success-icon {
@@ -332,6 +356,8 @@ body {
   justify-content: center;
   color: #16a34a;
   font-size: 24px;
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .success-title {
@@ -389,7 +415,6 @@ body {
   }
 
   .otp-box {
-    height: 44px;
     font-size: 18px;
   }
 }
