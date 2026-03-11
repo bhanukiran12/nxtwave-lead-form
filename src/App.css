@@ -40,7 +40,7 @@ body,
   width: min(420px, 100%);
   max-width: min(420px, 100%);
   min-height: 580px;
-  padding: 24px;
+  padding: 24px 36px;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -408,10 +408,24 @@ body,
 }
 
 @media (max-width: 480px) {
+  body {
+    padding: 12px;
+  }
+
   .form-card {
-    padding: 20px;
-    min-height: 580px;
+    width: 100%;
+    max-width: 100%;
+    min-height: calc(100vh - 24px);
+    padding: 20px 24px;
     border-radius: 16px;
+  }
+
+  .step-content {
+    gap: 20px;
+  }
+
+  .fields-group {
+    gap: 16px;
   }
 
   .otp-box {
