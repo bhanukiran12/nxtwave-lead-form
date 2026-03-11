@@ -70,6 +70,13 @@ function App() {
       submissionPayload
     });
 
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(submissionPayload)
+    }).catch(() => {});
+
     try {
       const response = await fetch(POST_OTP_EVENTS_API_URL, {
         method: 'POST',
