@@ -169,6 +169,8 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
         acceptTAndCAndPrivacyPolicy: true,
         lead_category: LEAD_CATEGORY,
         graduationYear: store.gradYear,
+        state: store.state,
+        nativeState: store.state,
         preferredMode: getPreferredModeValue(store.mode),
         timeSlots: slotInfo.timeSlot,
         selectADateToBookASlot: slotInfo.slotDate,
