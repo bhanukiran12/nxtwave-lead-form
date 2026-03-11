@@ -1,4 +1,4 @@
-export const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbzrD-NyHXgvbeKqE9yNXVIEjcVNqQXN-E3iIY3zqI3mE9DC-X17_3eTkZo_KYme4K-Mqg/exec'
+export const SHEETS_URL = 'https://script.google.com/macros/s/AKfycbwqOTFg0jWOWFBOU5gPc3m7mMEhKGDN8lgm6dH7vs93Ub9hfST3dAmlAdU_Lv1uVE89jw/exec'
 export const SHEETS_STAGE_NAME = 'Leads_Stage';
 // Backend API URL - Update this to your deployed backend URL
 export const POST_OTP_EVENTS_API_URL = 'https://nxtwave-lead-backend.vercel.app/api/post-otp-events';
