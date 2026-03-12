@@ -54,6 +54,22 @@ function normalizeOrigin(url) {
   }
 }
 
+function withWwwVariants(origin) {
+  if (!origin) return [];
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+    const protocol = parsed.protocol;
+    const port = parsed.port ? `:${parsed.port}` : '';
+    if (host.startsWith('www.')) {
+      return [origin, `${protocol}//${host.replace(/^www\./, '')}${port}`];
+    }
+    return [origin, `${protocol}//www.${host}${port}`];
+  } catch {
+    return [origin];
+  }
+}
+
 export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
   const formDataLayerRef = useRef(null);
   const uniqueEventIdRef = useRef(1);
@@ -81,8 +97,12 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
   useEffect(() => {
     const referrerOrigin = normalizeOrigin(document.referrer);
     const configuredOrigin = normalizeOrigin(parentOrigin);
-    const allowedOrigins = new Set([referrerOrigin, configuredOrigin].filter(Boolean));
-    const requestTargetOrigin = referrerOrigin || configuredOrigin || '*';
+    const allowedOrigins = new Set([
+      ...withWwwVariants(referrerOrigin),
+      ...withWwwVariants(configuredOrigin)
+    ].filter(Boolean));
+    const requestTargetOrigins = [...allowedOrigins];
+    if (requestTargetOrigins.length === 0) requestTargetOrigins.push('*');
 
     const onMessage = (event) => {
       if (event.source !== window.parent) return;
@@ -111,11 +131,15 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
     window.addEventListener('message', onMessage);
 
     if (window.parent && window.parent !== window) {
-      console.log('[DL_PARENT_URL_CONTEXT] requesting parent URL context', { requestTargetOrigin });
-      window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
+      console.log('[DL_PARENT_URL_CONTEXT] requesting parent URL context', { requestTargetOrigins });
+      requestTargetOrigins.forEach((origin) => {
+        window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, origin);
+      });
       const timer = window.setTimeout(() => {
-        console.log('[DL_PARENT_URL_CONTEXT] retry requesting parent URL context', { requestTargetOrigin });
-        window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
+        console.log('[DL_PARENT_URL_CONTEXT] retry requesting parent URL context', { requestTargetOrigins });
+        requestTargetOrigins.forEach((origin) => {
+          window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, origin);
+        });
       }, 800);
 
       return () => {
