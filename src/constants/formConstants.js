@@ -7,8 +7,8 @@ export const MSG91_WIDGET_ID = '3663656d6c34303137353639';
 export const MSG91_TOKEN_AUTH = '498239TypIWEjBdX69b10f5dP1';
 export const MSG91_SCRIPT_SRC = 'https://verify.msg91.com/otp-provider.js';
 export const MSG91_CAPTCHA_RENDER_ID = 'msg91-captcha-container';
-export const PARENT_WINDOW_ORIGIN = 'https://ccbp-4-0-technical-intensive-project.webflow.io';
-export const PARENT_PAGE_URL = 'https://ccbp-4-0-technical-intensive-project.webflow.io/new-intensive';
+export const PARENT_WINDOW_ORIGIN = 'https://ccbp.in';
+export const PARENT_PAGE_URL = 'https://ccbp.in/intensive';
 export const TARGET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1mYoWaXaJUY9cYVDxGy7lSWAWIwmfsDIjIziefAsYKeA/edit?usp=sharing';
 
 export const GRAD_YEARS_ONLINE = ['2026', '2025', '2024', '2023', '2022', '2021', '2020'];
