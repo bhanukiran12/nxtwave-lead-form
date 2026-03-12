@@ -74,6 +74,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
   const formDataLayerRef = useRef(null);
   const uniqueEventIdRef = useRef(1);
   const targetOriginRef = useRef(parentOrigin);
+  const parentContextReceivedRef = useRef(false);
 
   useEffect(() => {
     // postMessage requires strict origin format: scheme + host (+ optional port), no path.
@@ -117,6 +118,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
 
       const data = event.data || {};
       if (data.type !== 'PARENT_URL_CONTEXT' || typeof data.url !== 'string') return;
+      parentContextReceivedRef.current = true;
 
       const fdl = formDataLayerRef.current;
       if (!fdl) return;
@@ -137,19 +139,21 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
     window.addEventListener('message', onMessage);
 
     if (window.parent && window.parent !== window) {
-      console.log('[DL_PARENT_URL_CONTEXT] requesting parent URL context', { requestTargetOrigins });
-      requestTargetOrigins.forEach((origin) => {
-        window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, origin);
-      });
-      const timer = window.setTimeout(() => {
-        console.log('[DL_PARENT_URL_CONTEXT] retry requesting parent URL context', { requestTargetOrigins });
+      const requestContext = (reason) => {
+        console.log('[DL_PARENT_URL_CONTEXT] requesting parent URL context', { reason, requestTargetOrigins });
         requestTargetOrigins.forEach((origin) => {
           window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, origin);
         });
-      }, 800);
+      };
+      requestContext('initial');
+      const retryDelays = [800, 1800, 3000, 4500, 6500];
+      const timers = retryDelays.map((delayMs) => window.setTimeout(() => {
+        if (parentContextReceivedRef.current) return;
+        requestContext(`retry_${delayMs}ms`);
+      }, delayMs));
 
       return () => {
-        clearTimeout(timer);
+        timers.forEach(clearTimeout);
         window.removeEventListener('message', onMessage);
       };
     }
