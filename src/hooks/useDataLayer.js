@@ -27,7 +27,26 @@ function getNextUniqueEventId(existing = []) {
   return max + 1;
 }
 
-export default function useDataLayer({ parentOrigin }) {
+function getFrontendPathIdFromUrl(url) {
+  try {
+    const parsed = new URL(url);
+    const cleanPath = parsed.pathname.replace(/^\/+|\/+$/g, '');
+    if (!cleanPath) return 'home';
+    return cleanPath.split('/')[0].toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+function normalizeOrigin(url) {
+  try {
+    return new URL(url).origin;
+  } catch {
+    return '';
+  }
+}
+
+export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
   const formDataLayerRef = useRef(null);
   const uniqueEventIdRef = useRef(1);
   const targetOriginRef = useRef(parentOrigin);
@@ -51,6 +70,44 @@ export default function useDataLayer({ parentOrigin }) {
     }
   }, [parentOrigin]);
 
+  useEffect(() => {
+    const referrerOrigin = normalizeOrigin(document.referrer);
+    const configuredOrigin = normalizeOrigin(parentOrigin);
+    const allowedOrigins = new Set([referrerOrigin, configuredOrigin].filter(Boolean));
+    const requestTargetOrigin = referrerOrigin || configuredOrigin || '*';
+
+    const onMessage = (event) => {
+      if (event.source !== window.parent) return;
+      if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin)) return;
+
+      const data = event.data || {};
+      if (data.type !== 'PARENT_URL_CONTEXT' || typeof data.url !== 'string') return;
+
+      const fdl = formDataLayerRef.current;
+      if (!fdl) return;
+
+      const resolvedPathId = getFrontendPathIdFromUrl(data.url) || fdl.frontendPathId || '';
+      fdl.parentUrl = data.url;
+      fdl.frontendPathId = resolvedPathId;
+    };
+
+    window.addEventListener('message', onMessage);
+
+    if (window.parent && window.parent !== window) {
+      window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
+      const timer = window.setTimeout(() => {
+        window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
+      }, 800);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('message', onMessage);
+      };
+    }
+
+    return () => window.removeEventListener('message', onMessage);
+  }, [parentOrigin]);
+
   const pushDataLayerEvent = (eventName, eventData = {}, options = {}) => {
     if (!formDataLayerRef.current) return;
 
@@ -61,6 +118,8 @@ export default function useDataLayer({ parentOrigin }) {
       event: eventName,
       timestamp: new Date().toISOString(),
       sessionId: fdl.sessionId,
+      formId: fdl.formId,
+      frontend_form_path_id: fdl.frontendPathId,
       'gtm.uniqueEventId': uniqueEventId,
       ...eventData
     };
@@ -156,11 +215,16 @@ export default function useDataLayer({ parentOrigin }) {
     const pageLoadKey = `nxtwave_page_load_tracked_${sessionId}`;
 
     uniqueEventIdRef.current = getNextUniqueEventId(window.dataLayer);
+    const parentUrl = document.referrer || parentPageUrl || '';
+    const frontendPathId = getFrontendPathIdFromUrl(parentUrl) || getFrontendPathIdFromUrl(window.location.href);
 
     formDataLayerRef.current = {
       sessionId,
+      formId: formId || '',
+      frontendPathId,
       startTime: new Date().toISOString(),
       pageUrl: window.location.href,
+      parentUrl,
       userAgent: navigator.userAgent,
       referrer: document.referrer || 'direct',
       formState: {},

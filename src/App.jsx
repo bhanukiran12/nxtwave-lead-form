@@ -5,6 +5,7 @@ import StepTwo from './components/StepTwo';
 import StepThree from './components/StepThree';
 import SuccessStep from './components/SuccessStep';
 import {
+  FORM_ID,
   GRAD_YEARS_CLASSROOM,
   GRAD_YEARS_ONLINE,
   PARENT_PAGE_URL,
@@ -38,7 +39,11 @@ function App() {
     trackFieldInteraction,
     trackOtpAction,
     trackFormSubmission
-  } = useDataLayer({ parentOrigin: PARENT_WINDOW_ORIGIN });
+  } = useDataLayer({
+    parentOrigin: PARENT_WINDOW_ORIGIN,
+    parentPageUrl: PARENT_PAGE_URL,
+    formId: FORM_ID
+  });
 
   const { buildSubmissionPayload } = useSubmissionPayload({
     parentOrigin: PARENT_WINDOW_ORIGIN,
