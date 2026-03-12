@@ -227,7 +227,9 @@ function App() {
     if (!step2Valid) return;
     trackFieldInteraction('gradYear', store.gradYear);
     trackFieldInteraction('state', store.state);
-    trackFieldInteraction('demo', store.demo);
+    if (store.demo) {
+      trackFieldInteraction('demo', store.demo);
+    }
     postStageDataToSheet('step2', {
       name: store.name,
       mobile: store.mobile,
