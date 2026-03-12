@@ -75,6 +75,8 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
   const uniqueEventIdRef = useRef(1);
   const targetOriginRef = useRef(parentOrigin);
   const parentContextReceivedRef = useRef(false);
+  const pathContextResolvedRef = useRef(false);
+  const pendingEventsRef = useRef([]);
 
   useEffect(() => {
     // postMessage requires strict origin format: scheme + host (+ optional port), no path.
@@ -128,12 +130,14 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
         || 'home';
       fdl.parentUrl = data.url;
       fdl.frontendPathId = resolvedPathId;
+      pathContextResolvedRef.current = true;
 
       console.log('[DL_PARENT_URL_CONTEXT]', {
         origin: event.origin,
         parentUrl: data.url,
         frontend_form_path_id: resolvedPathId
       });
+      flushPendingEvents();
     };
 
     window.addEventListener('message', onMessage);
@@ -151,9 +155,18 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
         if (parentContextReceivedRef.current) return;
         requestContext(`retry_${delayMs}ms`);
       }, delayMs));
+      const resolveFallbackTimer = window.setTimeout(() => {
+        if (pathContextResolvedRef.current) return;
+        const fdl = formDataLayerRef.current;
+        if (!fdl) return;
+        fdl.frontendPathId = fdl.frontendPathId || 'home';
+        pathContextResolvedRef.current = true;
+        flushPendingEvents();
+      }, 2200);
 
       return () => {
         timers.forEach(clearTimeout);
+        clearTimeout(resolveFallbackTimer);
         window.removeEventListener('message', onMessage);
       };
     }
@@ -161,7 +174,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
     return () => window.removeEventListener('message', onMessage);
   }, [parentOrigin]);
 
-  const pushDataLayerEvent = (eventName, eventData = {}, options = {}) => {
+  const emitDataLayerEvent = (eventName, eventData = {}, options = {}) => {
     if (!formDataLayerRef.current) return;
 
     const fdl = formDataLayerRef.current;
@@ -193,6 +206,22 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
         // no-op: analytics bridge must not break flow
       }
     }
+  };
+
+  const flushPendingEvents = () => {
+    if (!pathContextResolvedRef.current) return;
+    if (pendingEventsRef.current.length === 0) return;
+    const pending = [...pendingEventsRef.current];
+    pendingEventsRef.current = [];
+    pending.forEach((item) => emitDataLayerEvent(item.eventName, item.eventData, item.options));
+  };
+
+  const pushDataLayerEvent = (eventName, eventData = {}, options = {}) => {
+    if (!pathContextResolvedRef.current) {
+      pendingEventsRef.current.push({ eventName, eventData, options });
+      return;
+    }
+    emitDataLayerEvent(eventName, eventData, options);
   };
 
   const trackStepView = (stepNumber) => {
@@ -292,6 +321,8 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
       },
       events: []
     };
+    pathContextResolvedRef.current = false;
+    pendingEventsRef.current = [];
 
     sessionStorage.setItem('nxtwave_session_id', sessionId);
 
