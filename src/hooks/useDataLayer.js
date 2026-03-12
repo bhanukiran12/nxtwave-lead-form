@@ -51,7 +51,7 @@ export default function useDataLayer({ parentOrigin }) {
     }
   }, [parentOrigin]);
 
-  const pushDataLayerEvent = (eventName, eventData = {}) => {
+  const pushDataLayerEvent = (eventName, eventData = {}, options = {}) => {
     if (!formDataLayerRef.current) return;
 
     const fdl = formDataLayerRef.current;
@@ -69,7 +69,9 @@ export default function useDataLayer({ parentOrigin }) {
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push(event);
 
-    if (window.parent && window.parent !== window) {
+    const shouldForwardToParent = options.forwardToParent !== false;
+
+    if (shouldForwardToParent && window.parent && window.parent !== window) {
       try {
         window.parent.postMessage(
           { type: 'DATALAYER_UPDATE', payload: toPostMessageSafeValue(event) },
@@ -113,10 +115,17 @@ export default function useDataLayer({ parentOrigin }) {
 
     if (action === 'attempt') fdl.formMetrics.otpAttempts += 1;
 
-    pushDataLayerEvent(`otp_${action}`, {
-      attemptNumber: fdl.formMetrics.otpAttempts,
-      ...details
-    });
+    const eventName = `otp_${action}`;
+    const shouldForwardToParent = eventName !== 'otp_send';
+
+    pushDataLayerEvent(
+      eventName,
+      {
+        attemptNumber: fdl.formMetrics.otpAttempts,
+        ...details
+      },
+      { forwardToParent: shouldForwardToParent }
+    );
   };
 
   const trackFormSubmission = (status, data = {}) => {

@@ -95,6 +95,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   const setOtpStatusMessage = (message, type = 'info') => setOtpStatus({ message, type });
   const setProviderError = (code) => {
     setOtpStatusMessage(OTP_PROVIDER_ERRORS[code] || 'OTP provider is not ready. Please refresh and try again.', 'error');
+    console.error('[OTP_PROVIDER_ERROR]', code);
     onOtpAction?.('provider_failed', { code });
   };
 
@@ -157,7 +158,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     const configuration = {
       widgetId: MSG91_WIDGET_ID,
       tokenAuth: MSG91_TOKEN_AUTH,
-      identifier: toMsg91Identifier(mobile),
       exposeMethods: true,
       captchaRenderId: MSG91_CAPTCHA_RENDER_ID,
       success: () => {},
@@ -232,6 +232,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
       if (!result.ok) {
         setOtpStatusMessage('Failed to send OTP. Please try again.', 'error');
+        console.error('[OTP_SEND_ERROR]', result.error);
         onOtpAction?.('send_failed', { error: result.error?.message || 'send_otp_failed' });
         setVerifyLoading(false);
         otpSendInFlightRef.current = false;
@@ -246,8 +247,9 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       setVerifyLoading(false);
       otpSendInFlightRef.current = false;
       return true;
-    } catch {
+    } catch (error) {
       setOtpStatusMessage('Error sending OTP. Please try again.', 'error');
+      console.error('[OTP_SEND_EXCEPTION]', error);
       setVerifyLoading(false);
       otpSendInFlightRef.current = false;
       return false;
@@ -311,7 +313,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       setVerifyLoading(false);
       return;
     }
-    
+
     await sendOtpToMobile(false);
     focusFirstOtp();
   };
@@ -349,6 +351,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
       if (!result.ok) {
         setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
+        console.error('[OTP_RESEND_ERROR]', result.error);
         onOtpAction?.('send_failed', { error: result.error?.message || 'retry_otp_failed' });
         return;
       }
@@ -358,9 +361,10 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       setOtpStatusMessage('OTP resent. Enter the 6-digit code.', 'success');
       onOtpAction?.('sent_success');
       focusFirstOtp();
-    } catch {
+    } catch (error) {
       setVerifyLoading(false);
       setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
+      console.error('[OTP_RESEND_EXCEPTION]', error);
     }
   };
 
