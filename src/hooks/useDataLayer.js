@@ -31,7 +31,7 @@ function getFrontendPathIdFromUrl(url) {
   try {
     const parsed = new URL(url);
     const cleanPath = parsed.pathname.replace(/^\/+|\/+$/g, '');
-    if (!cleanPath) return 'home';
+    if (!cleanPath) return '';
     return cleanPath.split('/')[0].toLowerCase();
   } catch {
     return '';
@@ -86,7 +86,10 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
       const fdl = formDataLayerRef.current;
       if (!fdl) return;
 
-      const resolvedPathId = getFrontendPathIdFromUrl(data.url) || fdl.frontendPathId || '';
+      const resolvedPathId = getFrontendPathIdFromUrl(data.url)
+        || getFrontendPathIdFromUrl(parentPageUrl)
+        || fdl.frontendPathId
+        || 'home';
       fdl.parentUrl = data.url;
       fdl.frontendPathId = resolvedPathId;
     };
@@ -216,7 +219,10 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
 
     uniqueEventIdRef.current = getNextUniqueEventId(window.dataLayer);
     const parentUrl = document.referrer || parentPageUrl || '';
-    const frontendPathId = getFrontendPathIdFromUrl(parentUrl) || getFrontendPathIdFromUrl(window.location.href);
+    const frontendPathId = getFrontendPathIdFromUrl(parentPageUrl)
+      || getFrontendPathIdFromUrl(parentUrl)
+      || getFrontendPathIdFromUrl(window.location.href)
+      || 'home';
 
     formDataLayerRef.current = {
       sessionId,
