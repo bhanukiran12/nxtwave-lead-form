@@ -88,6 +88,8 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   const otpVerifyInFlightRef = useRef(false);
   const otpVerifiedRef = useRef(false);
   const reqIdRef = useRef('');
+  const otpSendInFlightRef = useRef(false);
+  const lastOtpSendRef = useRef({ identifier: '', at: 0 });
 
   const clearOtpStatus = () => setOtpStatus({ message: '', type: 'info' });
   const setOtpStatusMessage = (message, type = 'info') => setOtpStatus({ message, type });
@@ -191,11 +193,26 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       return false;
     }
 
+    if (otpSendInFlightRef.current) return false;
+
+    const now = Date.now();
+    const duplicateSendWindowMs = 55 * 1000;
+    const isDuplicateInitialSend = !isResend
+      && lastOtpSendRef.current.identifier === identifier
+      && now - lastOtpSendRef.current.at < duplicateSendWindowMs;
+
+    if (isDuplicateInitialSend) {
+      setOtpStatusMessage('OTP already sent. Please enter the latest OTP.', 'info');
+      focusFirstOtp();
+      return true;
+    }
+
     if (typeof window.sendOtp !== 'function') {
       setOtpStatusMessage('OTP provider is not ready. Please refresh and try again.', 'error');
       return false;
     }
 
+    otpSendInFlightRef.current = true;
     setVerifyLoading(true);
     setOtpStatusMessage(isResend ? 'Resending OTP...' : 'Sending OTP...', 'info');
     onOtpAction?.('send', { isResend });
@@ -217,18 +234,22 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
         setOtpStatusMessage('Failed to send OTP. Please try again.', 'error');
         onOtpAction?.('send_failed', { error: result.error?.message || 'send_otp_failed' });
         setVerifyLoading(false);
+        otpSendInFlightRef.current = false;
         return false;
       }
 
       reqIdRef.current = extractReqId(result.data);
+      lastOtpSendRef.current = { identifier, at: Date.now() };
       otpVerifiedRef.current = false;
       setOtpStatusMessage('OTP sent. Enter the 6-digit code.', 'success');
       onOtpAction?.('sent_success');
       setVerifyLoading(false);
+      otpSendInFlightRef.current = false;
       return true;
     } catch {
       setOtpStatusMessage('Error sending OTP. Please try again.', 'error');
       setVerifyLoading(false);
+      otpSendInFlightRef.current = false;
       return false;
     }
   };
@@ -333,6 +354,7 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       }
 
       reqIdRef.current = extractReqId(result.data) || reqIdRef.current;
+      lastOtpSendRef.current = { identifier: toMsg91Identifier(mobile), at: Date.now() };
       setOtpStatusMessage('OTP resent. Enter the 6-digit code.', 'success');
       onOtpAction?.('sent_success');
       focusFirstOtp();
