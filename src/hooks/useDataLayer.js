@@ -34,10 +34,20 @@ export default function useDataLayer({ parentOrigin }) {
 
   useEffect(() => {
     // postMessage requires strict origin format: scheme + host (+ optional port), no path.
+    // Prefer the actual embedding origin from referrer to avoid hardcoded origin mismatch.
+    try {
+      if (document.referrer) {
+        targetOriginRef.current = new URL(document.referrer).origin;
+        return;
+      }
+    } catch {
+      // no-op: fallback to configured origin below
+    }
+
     try {
       targetOriginRef.current = new URL(parentOrigin).origin;
     } catch {
-      targetOriginRef.current = parentOrigin;
+      targetOriginRef.current = parentOrigin || '*';
     }
   }, [parentOrigin]);
 
