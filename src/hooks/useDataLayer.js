@@ -162,7 +162,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
         fdl.frontendPathId = fdl.frontendPathId || 'home';
         pathContextResolvedRef.current = true;
         flushPendingEvents();
-      }, 2200);
+      }, 8000);
 
       return () => {
         timers.forEach(clearTimeout);
