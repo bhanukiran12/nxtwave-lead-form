@@ -27,6 +27,14 @@ function getNextUniqueEventId(existing = []) {
   return max + 1;
 }
 
+function hasTrackedPageLoadInRuntime() {
+  return Boolean(window.__nxtwavePageLoadTracked__);
+}
+
+function markPageLoadTrackedInRuntime() {
+  window.__nxtwavePageLoadTracked__ = true;
+}
+
 function getFrontendPathIdFromUrl(url) {
   try {
     const parsed = new URL(url);
@@ -91,13 +99,21 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
         || 'home';
       fdl.parentUrl = data.url;
       fdl.frontendPathId = resolvedPathId;
+
+      console.log('[DL_PARENT_URL_CONTEXT]', {
+        origin: event.origin,
+        parentUrl: data.url,
+        frontend_form_path_id: resolvedPathId
+      });
     };
 
     window.addEventListener('message', onMessage);
 
     if (window.parent && window.parent !== window) {
+      console.log('[DL_PARENT_URL_CONTEXT] requesting parent URL context', { requestTargetOrigin });
       window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
       const timer = window.setTimeout(() => {
+        console.log('[DL_PARENT_URL_CONTEXT] retry requesting parent URL context', { requestTargetOrigin });
         window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
       }, 800);
 
@@ -120,7 +136,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
       event: eventName,
       timestamp: new Date().toISOString(),
       sessionId: fdl.sessionId,
-      formId: fdl.formId,
+      form_id: fdl.formId,
       frontend_form_path_id: fdl.frontendPathId,
       'gtm.uniqueEventId': uniqueEventId,
       ...eventData
@@ -214,7 +230,6 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
   useEffect(() => {
     window.dataLayer = window.dataLayer || [];
     const sessionId = sessionStorage.getItem('nxtwave_session_id') || generateSessionId();
-    const pageLoadKey = `nxtwave_page_load_tracked_${sessionId}`;
 
     uniqueEventIdRef.current = getNextUniqueEventId(window.dataLayer);
     const parentUrl = document.referrer || parentPageUrl || '';
@@ -245,14 +260,14 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
 
     sessionStorage.setItem('nxtwave_session_id', sessionId);
 
-    // React StrictMode can run mount effects twice in development; only track once per session.
-    if (!sessionStorage.getItem(pageLoadKey)) {
+    // React StrictMode can run mount effects twice in development; only track once per runtime load.
+    if (!hasTrackedPageLoadInRuntime()) {
       pushDataLayerEvent('page_load', {
         pageTitle: document.title,
         pageUrl: window.location.href,
         referrer: document.referrer || 'direct'
       });
-      sessionStorage.setItem(pageLoadKey, '1');
+      markPageLoadTrackedInRuntime();
     }
   }, []);
 
