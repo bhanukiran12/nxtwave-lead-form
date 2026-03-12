@@ -102,12 +102,18 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
       ...withWwwVariants(configuredOrigin)
     ].filter(Boolean));
     const requestTargetOrigins = [...allowedOrigins];
-    if (requestTargetOrigins.length === 0) requestTargetOrigins.push('*');
+    requestTargetOrigins.push('*');
 
     const onMessage = (event) => {
       if (event.source !== window.parent) return;
       const isFileOriginMessage = event.origin === 'null';
-      if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin) && !isFileOriginMessage) return;
+      if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin) && !isFileOriginMessage) {
+        console.log('[DL_PARENT_URL_CONTEXT] ignored message due to origin', {
+          eventOrigin: event.origin,
+          allowedOrigins: [...allowedOrigins]
+        });
+        return;
+      }
 
       const data = event.data || {};
       if (data.type !== 'PARENT_URL_CONTEXT' || typeof data.url !== 'string') return;
