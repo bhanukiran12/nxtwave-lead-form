@@ -86,7 +86,8 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
 
     const onMessage = (event) => {
       if (event.source !== window.parent) return;
-      if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin)) return;
+      const isFileOriginMessage = event.origin === 'null';
+      if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin) && !isFileOriginMessage) return;
 
       const data = event.data || {};
       if (data.type !== 'PARENT_URL_CONTEXT' || typeof data.url !== 'string') return;
@@ -232,7 +233,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
     const sessionId = sessionStorage.getItem('nxtwave_session_id') || generateSessionId();
 
     uniqueEventIdRef.current = getNextUniqueEventId(window.dataLayer);
-    const parentUrl = document.referrer || parentPageUrl || '';
+    const parentUrl = document.referrer || '';
     const frontendPathId = getFrontendPathIdFromUrl(parentUrl)
       || getFrontendPathIdFromUrl(window.location.href)
       || 'home';
