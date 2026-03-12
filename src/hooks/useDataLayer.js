@@ -87,7 +87,6 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
       if (!fdl) return;
 
       const resolvedPathId = getFrontendPathIdFromUrl(data.url)
-        || getFrontendPathIdFromUrl(parentPageUrl)
         || fdl.frontendPathId
         || 'home';
       fdl.parentUrl = data.url;
@@ -219,8 +218,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
 
     uniqueEventIdRef.current = getNextUniqueEventId(window.dataLayer);
     const parentUrl = document.referrer || parentPageUrl || '';
-    const frontendPathId = getFrontendPathIdFromUrl(parentPageUrl)
-      || getFrontendPathIdFromUrl(parentUrl)
+    const frontendPathId = getFrontendPathIdFromUrl(parentUrl)
       || getFrontendPathIdFromUrl(window.location.href)
       || 'home';
 
