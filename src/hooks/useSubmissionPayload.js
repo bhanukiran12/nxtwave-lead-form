@@ -68,7 +68,7 @@ function extractUtmFromUrl(url) {
 
 function getPreferredModeValue(mode) {
   if (mode === 'In Classroom') return 'Learn at Training Center (Offline)';
-  if (mode === 'Online') return 'Learn Online';
+  if (mode === 'Online') return 'Learn from Home (Online)';
   return mode || '';
 }
 
