@@ -166,7 +166,7 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
         phoneNumber: store.mobile,
         frontend_url: frontendUrl,
         whatsappInfoStatus: true,
-        acceptTAndCAndPrivacyPolicy: true,
+        acceptTAndPrivacyPolicy: true,
         lead_category: LEAD_CATEGORY,
         graduationYear: store.gradYear,
         state: store.state,
@@ -181,7 +181,8 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
       },
       form_id: FORM_ID,
       form_submission_id: String(Date.now()),
-      user_id: window.crypto?.randomUUID ? window.crypto.randomUUID() : `user_${Date.now()}`,
+      // Placeholder: actual user_id is set from DraftUser API response in App.jsx
+      user_id: '',
       form_submission_datetime: formatDateTimeYMDHMS(now)
     };
   };

@@ -61,27 +61,7 @@ function App() {
 
     const submissionPayload = buildSubmissionPayload(store);
 
-    await postStageDataToSheet('final', {
-      name: store.name,
-      mobile: store.mobile,
-      mode: store.mode,
-      gradYear: store.gradYear,
-      state: store.state,
-      demo: store.demo,
-      otpVerified: true,
-      submitted: true,
-      formSubmissionId: submissionPayload.form_submission_id,
-      formSubmissionDatetime: submissionPayload.form_submission_datetime,
-      submissionPayload
-    });
-
-    fetch(SHEETS_URL, {
-      method: 'POST',
-      mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(submissionPayload)
-    }).catch(() => {});
-
+    let draftUserId = '';
     try {
       const response = await fetch(POST_OTP_EVENTS_API_URL, {
         method: 'POST',
@@ -95,8 +75,36 @@ function App() {
       if (!response.ok || !json?.ok) {
         throw new Error(json?.error || `Backend API failed with status ${response.status}`);
       }
-    } catch {
+      draftUserId = json?.uuid || json?.userId || json?.user_id || '';
+      if (draftUserId) {
+        submissionPayload.user_id = draftUserId;
+      }
+    } catch (err) {
+      // preserve existing behaviour on failure; fallback to built user_id
+      console.error('[onOtpVerified] Draft user lookup failed:', err); 
     }
+
+    await postStageDataToSheet('final', {
+      name: store.name,
+      mobile: store.mobile,
+      mode: store.mode,
+      gradYear: store.gradYear,
+      state: store.state,
+      demo: store.demo,
+      otpVerified: true,
+      submitted: true,
+      formSubmissionId: submissionPayload.form_submission_id,
+      formSubmissionDatetime: submissionPayload.form_submission_datetime,
+      submissionPayload,
+      userId: draftUserId
+    });
+
+    fetch(SHEETS_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(submissionPayload)
+    }).catch(() => {});
   };
 
   const otp = useOtp({
