@@ -1,0 +1,1 @@
+const demoSlotOptions = [\n    'Today - 11:00AM',\n    'Today - 6:00PM',\n    'Tomorrow - 11:00AM',\n    'Tomorrow - 6:00PM'\n];
