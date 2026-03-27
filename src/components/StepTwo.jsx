@@ -25,10 +25,10 @@ function StepTwo({ store, setStore, yearsList, isClassroom, step2Valid, onContin
               <div className="select-wrapper">
                 <select id="inp-demo" value={store.demo} onChange={(e) => setStore((prev) => ({ ...prev, demo: e.target.value }))}>
                   <option value="">Select</option>
+                  <option value="Today - 11:00AM">Today - 11:00AM</option>
                   <option value="Today - 6:00PM">Today - 6:00PM</option>
-                  <option value="Today - 7:00PM">Today - 7:00PM</option>
+                  <option value="Tomorrow - 11:00AM">Tomorrow - 11:00AM</option>
                   <option value="Tomorrow - 6:00PM">Tomorrow - 6:00PM</option>
-                  <option value="Tomorrow - 7:00PM">Tomorrow - 7:00PM</option>
                 </select>
               </div>
             </div>
