@@ -1,45 +1,6 @@
 import { useEffect, useState } from 'react';
 import { FORM_ID, LEAD_CATEGORY, STEP_ID } from '../constants/formConstants';
-
-const pad2 = (num) => String(num).padStart(2, '0');
-const formatDateYMD = (date) => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-const formatDateTimeYMDHMS = (date) => `${formatDateYMD(date)} ${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(date.getSeconds())}`;
-
-function parseDemoSlot(demoValue) {
-  if (!demoValue) return { slotDate: '', slotDateTime: '', timeSlot: '' };
-  const parts = demoValue.split(' - ');
-  if (parts.length !== 2) return { slotDate: '', slotDateTime: '', timeSlot: '' };
-
-  const dayLabel = (parts[0] || '').trim().toLowerCase();
-  const timeRaw = (parts[1] || '').trim().toUpperCase();
-  const timeMatch = timeRaw.match(/^(\d{1,2}):(\d{2})(AM|PM)$/);
-  if (!timeMatch) return { slotDate: '', slotDateTime: '', timeSlot: '' };
-
-  const now = new Date();
-  const slotDateObj = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  if (dayLabel === 'tomorrow') slotDateObj.setDate(slotDateObj.getDate() + 1);
-
-  let hour = parseInt(timeMatch[1], 10);
-  const minute = parseInt(timeMatch[2], 10);
-  const meridian = timeMatch[3];
-  if (meridian === 'PM' && hour !== 12) hour += 12;
-  if (meridian === 'AM' && hour === 12) hour = 0;
-
-  const slotStart = new Date(slotDateObj);
-  slotStart.setHours(hour, minute, 0, 0);
-  const slotEnd = new Date(slotStart.getTime() + 60 * 60 * 1000);
-
-  const startHour12 = slotStart.getHours() % 12 || 12;
-  const endHour12 = slotEnd.getHours() % 12 || 12;
-  const startMeridian = slotStart.getHours() >= 12 ? 'PM' : 'AM';
-  const endMeridian = slotEnd.getHours() >= 12 ? 'PM' : 'AM';
-
-  return {
-    slotDate: formatDateYMD(slotStart),
-    slotDateTime: formatDateTimeYMDHMS(slotStart),
-    timeSlot: `${startHour12}${startMeridian} - ${endHour12}${endMeridian}`
-  };
-}
+import { formatDateTimeYMDHMS, parseDemoSlotValue } from '../utils/demoSlots';
 
 function extractUtmFromSearchParams(params) {
   const utm = {};
@@ -152,7 +113,7 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
   };
 
   const buildSubmissionPayload = (store) => {
-    const slotInfo = parseDemoSlot(store.demo);
+    const slotInfo = parseDemoSlotValue(store.demo);
     const utmParams = extractUtmParams();
     const now = new Date();
     const frontendUrl = resolveFrontendUrl();

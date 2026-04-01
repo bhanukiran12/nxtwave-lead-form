@@ -17,3 +17,4 @@ export const GRAD_YEARS_CLASSROOM = ['2026', '2025', '2024'];
 export const FORM_ID = 'intensive-demo-form';
 export const STEP_ID = 'USER_EXTRA_INFO_DETAILS';
 export const LEAD_CATEGORY = 'intensive_lead';
+export const DEMO_SLOT_CUTOFF_MINUTES = 30;
