@@ -4,6 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
+    "start": "vite --host 0.0.0.0",
     "backend": "node backend/server.cjs",
     "backend:express": "node backend/server-express.cjs",
     "dev": "vite",

@@ -19,6 +19,8 @@ const DRAFT_USER_CSRF_COOKIE = process.env.DRAFT_USER_CSRF_COOKIE || 'csrftoken=
 
 const SEGMENT_TRACK_URL = process.env.SEGMENT_TRACK_URL || 'https://api.segment.io/v1/track';
 const SEGMENT_WRITE_KEY = process.env.SEGMENT_WRITE_KEY || 'pSF1EDPoC6XzbKeiyn2N3StqrlGdPHFT';
+const CRM_TRACK_ACTIVITY_URL = process.env.CRM_TRACK_ACTIVITY_URL || 'https://crm-integrations-apis.flowwai.work/api/sales_crm_core/track_activity/v1/';
+const CRM_API_KEY = process.env.CRM_API_KEY || 'JewJk6ZrbaMWWHuYjSvwOHHdOO4m2s';
 
 function getOrdinal(day) {
   const rem10 = day % 10;
@@ -54,6 +56,40 @@ function toIsoWithIst(datetimeValue) {
   const [datePart, timePart] = String(datetimeValue).split(' ');
   if (!datePart || !timePart) return '';
   return `${datePart}T${timePart}+05:30`;
+}
+
+function getPhoneDetails(phoneNumber) {
+  let phone = String(phoneNumber || '').replace(/\s+/g, '');
+
+  if (phone.startsWith('91') && phone.length === 12) {
+    phone = phone.slice(2);
+  }
+  if (phone.startsWith('+91') && phone.length === 13) {
+    phone = phone.slice(3);
+  }
+
+  if (!/^[6789]\d{9}$/.test(phone)) {
+    throw new Error('Invalid phone number format');
+  }
+
+  return {
+    iso2_country_code: 'IN',
+    dial_code: '+91',
+    phone_number: phone
+  };
+}
+
+function getCRMPreferredMode(preferredMode) {
+  if (preferredMode === 'Offline') return 'Learn at Training Center (Offline)';
+  if (preferredMode === 'Online') return 'Learn from Home (Online)';
+  return 'Learn from Home (Online)';
+}
+
+function getFieldObject(fieldName, fieldValue) {
+  return {
+    field_name: fieldName,
+    field_value: String(fieldValue || '')
+  };
 }
 
 async function callDraftUserApi(phoneNumber) {
@@ -148,6 +184,89 @@ async function callSegmentTrack(submissionPayload, userId) {
   console.log('[Segment] Track success status:', response.status);
 }
 
+async function callCRMTrackActivity(submissionPayload, uuid, phoneNumber) {
+  const formData = submissionPayload?.form_data || {};
+  const formId = formData.form_id || '';
+
+  if (formId !== 'intensive-demo-form') {
+    console.log('[CRM] Skipping - form_id is not intensive-demo-form:', formId);
+    return;
+  }
+
+  if (!uuid) {
+    throw new Error('UUID is required for CRM track activity');
+  }
+
+  const phoneDetails = getPhoneDetails(phoneNumber);
+  const name = formData.fullName || formData.name || '';
+  const yearOfGraduation = formData.graduationYear || formData.yearOfGraduation || formData.year_of_graduation || '';
+  const preferredMode = formData.preferredMode || formData.preferred_mode || '';
+  const nativeLanguage = formData.language || '';
+  const nativeState = formData.state || formData.nativeState || formData.currentState || '';
+
+  let frontendPathId = 'intensive';
+  try {
+    const frontendUrl = formData.frontend_url || '';
+    if (frontendUrl) {
+      const parsed = new URL(frontendUrl);
+      const path = parsed.pathname.replace(/^\/+|\/+$/g, '');
+      if (path) {
+        frontendPathId = path.split('/')[0].toLowerCase();
+      }
+    }
+  } catch {}
+
+  const demoSlotDate = formData.selectADateToBookASlot || formData.demoSlotDate || '';
+  const demoTimeSlot = formData.timeSlots || formData.demoTimeSlot || formData.demo || '';
+
+  const activityDetails = [
+    getFieldObject('ACT_RAD_UID', uuid),
+    getFieldObject('ACT_RAD_NAME', name),
+    getFieldObject('ACT_PHONE_NUMBER', JSON.stringify(phoneDetails)),
+    getFieldObject('ACT_PREF_LANGUAGE', nativeLanguage),
+    getFieldObject('ACT_RAD_FRNT_END_PATH_ID', frontendPathId),
+    getFieldObject('ACT_RAD_UTM_SOURCE', formData.utm_source || ''),
+    getFieldObject('ACT_RAD_UTM_MEDIUM', formData.utm_medium || ''),
+    getFieldObject('ACT_RAD_UTM_CAMPAIGN', formData.utm_campaign || ''),
+    getFieldObject('ACT_RAD_UTM_CONTENT', formData.utm_content || ''),
+    getFieldObject('PREF_MODE_OF_STDY', getCRMPreferredMode(preferredMode)),
+    getFieldObject('ACT_RAD_YOG', yearOfGraduation),
+    getFieldObject('ACT_RAD_NATIVE_STATE', nativeState),
+    getFieldObject('ACT_RAD_DEM_BKD_SLOT_DATE', demoSlotDate),
+    getFieldObject('ACT_RAD_DEM_PREF_TIME_SLOT', demoTimeSlot),
+    getFieldObject('ACT_RAD_LEAD_SOURCE', 'DM Meta Intensive Form'),
+    getFieldObject('FORM_ID', formId)
+  ];
+
+  const body = {
+    activity_reference_id: 'ACT_DEMO_FORM_SUBMIT',
+    activity_details: activityDetails,
+    contact_identification_type: 'PHONE_NUMBER',
+    phone_number: phoneDetails
+  };
+
+  console.log('[CRM] Request payload:', JSON.stringify(body));
+
+  const response = await fetch(CRM_TRACK_ACTIVITY_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': CRM_API_KEY,
+      Accept: 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => '');
+    console.error('[CRM] API failed:', response.status, errorText);
+    throw new Error(`CRM Track Activity API failed with status ${response.status}: ${errorText}`);
+  }
+
+  const json = await response.json().catch(() => ({}));
+  console.log('[CRM] Track activity success:', json);
+}
+
 // API route for post-otp-events
 app.post('/api/post-otp-events', async (req, res) => {
   try {
@@ -168,7 +287,8 @@ app.post('/api/post-otp-events', async (req, res) => {
     }
 
     await callSegmentTrack(submissionPayload, uuid);
-    console.log('[Flow] DraftUser -> Segment flow completed successfully');
+    await callCRMTrackActivity(submissionPayload, uuid, phoneNumber);
+    console.log('[Flow] DraftUser -> Segment -> CRM flow completed successfully');
     return res.status(200).json({ ok: true, uuid });
   } catch (err) {
     console.error('[Flow] Failed:', err);

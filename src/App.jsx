@@ -60,6 +60,7 @@ function App() {
     setStep('success');
 
     const submissionPayload = buildSubmissionPayload(store);
+    console.log(submissionPayload);
 
     let draftUserId = '';
     try {

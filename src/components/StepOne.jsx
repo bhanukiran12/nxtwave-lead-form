@@ -67,7 +67,7 @@ function StepOne({
                 className={`mode-btn ${mode === 'In Classroom' ? 'selected' : ''}`}
                 onClick={() => setMode('In Classroom')}
               >
-                In Classroom
+                Training Center
               </button>
             </div>
           </div>
