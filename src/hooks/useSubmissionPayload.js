@@ -33,7 +33,23 @@ function getPreferredModeValue(mode) {
   return mode || '';
 }
 
-export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
+function withWwwVariants(origin) {
+  if (!origin) return [];
+  try {
+    const parsed = new URL(origin);
+    const host = parsed.hostname;
+    const protocol = parsed.protocol;
+    const port = parsed.port ? `:${parsed.port}` : '';
+    if (host.startsWith('www.')) {
+      return [origin, `${protocol}//${host.replace(/^www\./, '')}${port}`];
+    }
+    return [origin, `${protocol}//www.${host}${port}`];
+  } catch {
+    return [origin];
+  }
+}
+
+export default function useSubmissionPayload({ parentOrigins, parentPageUrls }) {
   const [parentUtmFromMessage, setParentUtmFromMessage] = useState({});
   const [parentUrlFromMessage, setParentUrlFromMessage] = useState('');
 
@@ -47,8 +63,14 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
       }
     })();
 
-    const allowedOrigins = new Set([parentOrigin, resolvedReferrerOrigin].filter(Boolean));
-    const requestTargetOrigin = resolvedReferrerOrigin || parentOrigin || '*';
+    const allOrigins = new Set();
+    (parentOrigins || []).forEach(origin => {
+      withWwwVariants(origin).forEach(v => allOrigins.add(v));
+    });
+    if (resolvedReferrerOrigin) {
+      withWwwVariants(resolvedReferrerOrigin).forEach(v => allOrigins.add(v));
+    }
+    const requestTargetOrigins = [...allOrigins, '*'];
 
     const onMessage = (event) => {
       if (event.source !== window.parent) return;
@@ -69,13 +91,16 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
     window.addEventListener('message', onMessage);
 
     if (window.parent && window.parent !== window) {
-      window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
-      window.parent.postMessage({ type: 'REQUEST_PARENT_UTM' }, requestTargetOrigin);
+      requestTargetOrigins.forEach(origin => {
+        window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, origin);
+        window.parent.postMessage({ type: 'REQUEST_PARENT_UTM' }, origin);
+      });
 
-      // Retry once to avoid missing parent data because of load-order timing.
       const timer = setTimeout(() => {
-        window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, requestTargetOrigin);
-        window.parent.postMessage({ type: 'REQUEST_PARENT_UTM' }, requestTargetOrigin);
+        requestTargetOrigins.forEach(origin => {
+          window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, origin);
+          window.parent.postMessage({ type: 'REQUEST_PARENT_UTM' }, origin);
+        });
       }, 800);
 
       return () => {
@@ -85,7 +110,7 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
     }
 
     return () => window.removeEventListener('message', onMessage);
-  }, [parentOrigin]);
+  }, [parentOrigins]);
 
   const extractUtmParams = () => {
     const fromReferrer = extractUtmFromUrl(document.referrer || '');
@@ -105,10 +130,10 @@ export default function useSubmissionPayload({ parentOrigin, parentPageUrl }) {
 
   const resolveFrontendUrl = () => {
     if (parentUrlFromMessage) return parentUrlFromMessage;
-    if (parentPageUrl) return parentPageUrl;
+    if (parentPageUrls && parentPageUrls.length > 0) return parentPageUrls[0];
 
     const referrer = document.referrer || '';
-    if (referrer.startsWith(parentOrigin)) return referrer;
+    if (parentOrigins && parentOrigins.some(origin => referrer.startsWith(origin))) return referrer;
     return window.location.href;
   };
 

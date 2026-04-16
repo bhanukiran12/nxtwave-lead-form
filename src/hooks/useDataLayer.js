@@ -70,40 +70,40 @@ function withWwwVariants(origin) {
   }
 }
 
-export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
+function getAllAllowedOrigins(parentOrigins, referrerOrigin) {
+  const origins = new Set();
+  parentOrigins.forEach(origin => {
+    withWwwVariants(origin).forEach(v => origins.add(v));
+  });
+  if (referrerOrigin) {
+    withWwwVariants(referrerOrigin).forEach(v => origins.add(v));
+  }
+  return [...origins];
+}
+
+export default function useDataLayer({ parentOrigins, parentPageUrls, formId }) {
   const formDataLayerRef = useRef(null);
   const uniqueEventIdRef = useRef(1);
-  const targetOriginRef = useRef(parentOrigin);
+  const targetOriginRef = useRef((parentOrigins && parentOrigins[0]) || '*');
   const parentContextReceivedRef = useRef(false);
   const pathContextResolvedRef = useRef(false);
   const pendingEventsRef = useRef([]);
 
   useEffect(() => {
-    // postMessage requires strict origin format: scheme + host (+ optional port), no path.
-    // Prefer the actual embedding origin from referrer to avoid hardcoded origin mismatch.
-    try {
-      if (document.referrer) {
-        targetOriginRef.current = new URL(document.referrer).origin;
+    const referrerOrigin = document.referrer ? normalizeOrigin(document.referrer) : '';
+    if (referrerOrigin) {
+      const allOrigins = getAllAllowedOrigins(parentOrigins || [], referrerOrigin);
+      if (allOrigins.includes(referrerOrigin)) {
+        targetOriginRef.current = referrerOrigin;
         return;
       }
-    } catch {
-      // no-op: fallback to configured origin below
     }
-
-    try {
-      targetOriginRef.current = new URL(parentOrigin).origin;
-    } catch {
-      targetOriginRef.current = parentOrigin || '*';
-    }
-  }, [parentOrigin]);
+    targetOriginRef.current = (parentOrigins && parentOrigins[0]) || '*';
+  }, [parentOrigins]);
 
   useEffect(() => {
     const referrerOrigin = normalizeOrigin(document.referrer);
-    const configuredOrigin = normalizeOrigin(parentOrigin);
-    const allowedOrigins = new Set([
-      ...withWwwVariants(referrerOrigin),
-      ...withWwwVariants(configuredOrigin)
-    ].filter(Boolean));
+    const allowedOrigins = new Set(getAllAllowedOrigins(parentOrigins || [], referrerOrigin));
     const requestTargetOrigins = [...allowedOrigins];
     requestTargetOrigins.push('*');
 
@@ -172,7 +172,7 @@ export default function useDataLayer({ parentOrigin, parentPageUrl, formId }) {
     }
 
     return () => window.removeEventListener('message', onMessage);
-  }, [parentOrigin]);
+  }, [parentOrigins]);
 
   const emitDataLayerEvent = (eventName, eventData = {}, options = {}) => {
     if (!formDataLayerRef.current) return;

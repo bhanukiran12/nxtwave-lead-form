@@ -8,8 +8,8 @@ import {
   FORM_ID,
   GRAD_YEARS_CLASSROOM,
   GRAD_YEARS_ONLINE,
-  PARENT_PAGE_URL,
-  PARENT_WINDOW_ORIGIN,
+  PARENT_PAGE_URLS,
+  PARENT_WINDOW_ORIGINS,
   POST_OTP_EVENTS_API_URL,
   SHEETS_STAGE_NAME,
   SHEETS_URL
@@ -40,14 +40,14 @@ function App() {
     trackOtpAction,
     trackFormSubmission
   } = useDataLayer({
-    parentOrigin: PARENT_WINDOW_ORIGIN,
-    parentPageUrl: PARENT_PAGE_URL,
+    parentOrigins: PARENT_WINDOW_ORIGINS,
+    parentPageUrls: PARENT_PAGE_URLS,
     formId: FORM_ID
   });
 
   const { buildSubmissionPayload } = useSubmissionPayload({
-    parentOrigin: PARENT_WINDOW_ORIGIN,
-    parentPageUrl: PARENT_PAGE_URL
+    parentOrigins: PARENT_WINDOW_ORIGINS,
+    parentPageUrls: PARENT_PAGE_URLS
   });
 
   const onOtpVerified = async () => {
