@@ -111,10 +111,6 @@ export default function useDataLayer({ parentOrigins, parentPageUrls, formId }) 
       if (event.source !== window.parent) return;
       const isFileOriginMessage = event.origin === 'null';
       if (allowedOrigins.size > 0 && !allowedOrigins.has(event.origin) && !isFileOriginMessage) {
-        console.log('[DL_PARENT_URL_CONTEXT] ignored message due to origin', {
-          eventOrigin: event.origin,
-          allowedOrigins: [...allowedOrigins]
-        });
         return;
       }
 
@@ -132,11 +128,6 @@ export default function useDataLayer({ parentOrigins, parentPageUrls, formId }) 
       fdl.frontendPathId = resolvedPathId;
       pathContextResolvedRef.current = true;
 
-      console.log('[DL_PARENT_URL_CONTEXT]', {
-        origin: event.origin,
-        parentUrl: data.url,
-        frontend_form_path_id: resolvedPathId
-      });
       flushPendingEvents();
     };
 
@@ -144,7 +135,6 @@ export default function useDataLayer({ parentOrigins, parentPageUrls, formId }) 
 
     if (window.parent && window.parent !== window) {
       const requestContext = (reason) => {
-        console.log('[DL_PARENT_URL_CONTEXT] requesting parent URL context', { reason, requestTargetOrigins });
         requestTargetOrigins.forEach((origin) => {
           window.parent.postMessage({ type: 'REQUEST_PARENT_URL_CONTEXT' }, origin);
         });

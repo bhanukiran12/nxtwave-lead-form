@@ -95,7 +95,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
   const setOtpStatusMessage = (message, type = 'info') => setOtpStatus({ message, type });
   const setProviderError = (code) => {
     setOtpStatusMessage(OTP_PROVIDER_ERRORS[code] || 'OTP provider is not ready. Please refresh and try again.', 'error');
-    console.error('[OTP_PROVIDER_ERROR]', code);
     onOtpAction?.('provider_failed', { code });
   };
 
@@ -232,7 +231,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
       if (!result.ok) {
         setOtpStatusMessage('Failed to send OTP. Please try again.', 'error');
-        console.error('[OTP_SEND_ERROR]', result.error);
         onOtpAction?.('send_failed', { error: result.error?.message || 'send_otp_failed' });
         setVerifyLoading(false);
         otpSendInFlightRef.current = false;
@@ -249,7 +247,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
       return true;
     } catch (error) {
       setOtpStatusMessage('Error sending OTP. Please try again.', 'error');
-      console.error('[OTP_SEND_EXCEPTION]', error);
       setVerifyLoading(false);
       otpSendInFlightRef.current = false;
       return false;
@@ -351,7 +348,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
 
       if (!result.ok) {
         setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
-        console.error('[OTP_RESEND_ERROR]', result.error);
         onOtpAction?.('send_failed', { error: result.error?.message || 'retry_otp_failed' });
         return;
       }
@@ -364,7 +360,6 @@ export default function useOtp({ mobile, onOtpAction, onVerified }) {
     } catch (error) {
       setVerifyLoading(false);
       setOtpStatusMessage('Failed to resend OTP. Please try again.', 'error');
-      console.error('[OTP_RESEND_EXCEPTION]', error);
     }
   };
 
