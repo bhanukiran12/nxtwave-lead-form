@@ -101,9 +101,9 @@ function getPhoneDetails(phoneNumber) {
 }
 
 function getCRMPreferredMode(preferredMode) {
-  if (preferredMode === 'Offline') return 'Learn at Training Center (Offline)';
-  if (preferredMode === 'Online') return 'Learn from Home (Online)';
-  return 'Learn from Home (Online)';
+  if (preferredMode === 'Learn at Training Center (Offline)') return 'Learn at Training Center (Offline)';
+  if (preferredMode === 'Learn from Home (Online)') return 'Learn from Home (Online)';
+  return preferredMode || 'Learn from Home (Online)';
 }
 
 function getCRMLeadSource(utmCampaign) {
