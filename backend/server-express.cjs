@@ -85,6 +85,13 @@ function getCRMPreferredMode(preferredMode) {
   return 'Learn from Home (Online)';
 }
 
+function getCRMLeadSource(utmCampaign) {
+  const campaign = String(utmCampaign || '').trim().toLowerCase();
+  if (campaign === 'digitalads') return 'Digital Marketing';
+  if (campaign === 'ifmkt') return 'Influencer Marketing';
+  return 'Organic';
+}
+
 function getFieldObject(fieldName, fieldValue) {
   return {
     field_name: fieldName,
@@ -234,7 +241,7 @@ async function callCRMTrackActivity(submissionPayload, uuid, phoneNumber) {
     getFieldObject('ACT_RAD_NATIVE_STATE', nativeState),
     getFieldObject('ACT_RAD_DEM_BKD_SLOT_DATE', demoSlotDate),
     getFieldObject('ACT_RAD_DEM_PREF_TIME_SLOT', demoTimeSlot),
-    getFieldObject('ACT_RAD_LEAD_SOURCE', 'DM Meta Intensive Form'),
+    getFieldObject('ACT_RAD_LEAD_SOURCE', getCRMLeadSource(formData.utm_campaign)),
     getFieldObject('FORM_ID', formId)
   ];
 

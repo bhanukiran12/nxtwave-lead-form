@@ -21,8 +21,8 @@ export const PARENT_WINDOW_ORIGIN = PARENT_WINDOW_ORIGINS[0];
 export const PARENT_PAGE_URL = PARENT_PAGE_URLS[0];
 export const TARGET_SHEET_URL = 'https://docs.google.com/spreadsheets/d/1mYoWaXaJUY9cYVDxGy7lSWAWIwmfsDIjIziefAsYKeA/edit?usp=sharing';
 
-export const GRAD_YEARS_ONLINE = ['2026', '2025', '2024', '2023', '2022', '2021', '2020'];
-export const GRAD_YEARS_CLASSROOM = ['2026', '2025', '2024'];
+export const GRAD_YEARS_ONLINE = ['2027', '2026', '2025', '2024', '2023', '2022', '2021', '2020'];
+export const GRAD_YEARS_CLASSROOM = ['2027', '2026', '2025', '2024'];
 
 export const FORM_ID = 'intensive-demo-form';
 export const STEP_ID = 'USER_EXTRA_INFO_DETAILS';
