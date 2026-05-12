@@ -72,7 +72,7 @@ function StepTwo({ store, setStore, yearsList, isClassroom, step2Valid, onContin
 
       <div className="step-footer">
         <button className="btn-primary" type="button" disabled={!step2Valid} onClick={onContinue}>
-          Verify Mobile Number
+         Continue
         </button>
       </div>
     </div>

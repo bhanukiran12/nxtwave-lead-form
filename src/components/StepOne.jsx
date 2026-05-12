@@ -17,7 +17,7 @@ function StepOne({
   return (
     <div className="step active">
       <div className="step-content">
-        <div className="form-title">Book a free demo in 60 seconds</div>
+        <div className="form-title"> Book a free session in 60 seconds</div>
         <ProgressStepper step={1} />
 
         <div className="fields-group">
@@ -83,7 +83,7 @@ function StepOne({
           of NxtWave.
         </div>
         <button className="btn-primary" type="button" disabled={!step1Valid} onClick={onContinue}>
-          Pick a Demo Slot
+        Book My Session
         </button>
       </div>
     </div>
